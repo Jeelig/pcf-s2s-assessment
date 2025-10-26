@@ -31,6 +31,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
     private changedQuestions = new Map<string, AuditQuestion>();
     private changedSubquestions = new Map<string, SubQuestion>();
 
+    // INIT function to initialize parameters provided by the PCF runtime and wire event handlers.
     public init(
         context: ComponentFramework.Context<IInputs>,
         notifyOutputChanged: () => void,
@@ -62,10 +63,12 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         });
     }
 
+    // Detects the current network state and toggles offline mode accordingly.
     private checkOnlineStatus(): void {
         this.isOffline = !navigator.onLine;
     }
 
+    // Reacts to the browser going online by syncing status and notifying the framework.
     private handleOnline(): void {
         console.log("Connection restored");
         this.isOffline = false;
@@ -73,12 +76,14 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.notifyOutputChanged();
     }
 
+    // Reacts to network loss by switching the control to offline mode.
     private handleOffline(): void {
         console.log("Connection lost - switching to offline mode");
         this.isOffline = true;
         this.updateConnectionStatus(false);
     }
 
+    // Updates the status banner displayed to the user based on the current connectivity.
     private updateConnectionStatus(isOnline: boolean): void {
         const statusDiv = this.container.querySelector("#connectionStatus");
         if (statusDiv) {
@@ -96,6 +101,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Loads the cached audit snapshot and pending changes from localStorage when running offline.
     private loadOfflineData(): void {
         try {
             const stored = localStorage.getItem(`audit_${this.auditId}`);
@@ -114,6 +120,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Persists the current audit state and metadata to localStorage for offline continuity.
     private saveOfflineData(): void {
         try {
             const dataToSave: OfflineData = {
@@ -131,6 +138,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Builds the base UI structure and connects global event toggles.
     private renderUI(): void {
         this.container.innerHTML = `
             <div class="connection-status" id="connectionStatus"></div>
@@ -158,6 +166,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.updateConnectionStatus(!this.isOffline);
     }
 
+    // Attempts to load the audit payload from the PCF input; falls back to offline cache if necessary.
     private loadAuditFromInput(): void {
         try {
             const auditDataParam = this.context.parameters.auditData?.raw;
@@ -192,6 +201,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Stores the incoming audit record, configures flags, and prepares question structures for rendering.
     private processAuditData(result: AuditRecord): void {
         this.globalResult = result;
         
@@ -206,6 +216,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.renderCategories();
     }
 
+    // Organizes raw audit questions by category and consolidates SKU groupings for downstream use.
     private orderResult(result: AuditRecord): QuestionCategory[] {
         const categoriesMap: Record<string, QuestionCategory> = {};
         const questions = result.nov_audit_nov_auditquestion_audit || [];
@@ -277,6 +288,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return Object.values(categoriesMap);
     }
 
+    // Hydrates questions with existing answers and triggers initial scoring metrics.
     private setResponses(): void {
         for (const cat of this.catquestions) {
             for (const q of cat.questions) {
@@ -297,6 +309,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.updateAllPercentages();
     }
 
+    // Maps stored answers back onto a non-SKU question and marks completion flags.
     private setQuestionResponse(q: AuditQuestion): void {
         switch (q.nov_answertype) {
             case 181910000:
@@ -327,6 +340,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Restores the saved state for a subquestion including numeric values and answered flags.
     private setSubQuestionResponse(sub: SubQuestion): void {
         switch (sub.cgi_answertype) {
             case 181910000:
@@ -344,6 +358,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Renders the full set of categories and reattaches event listeners after DOM updates.
     private renderCategories(): void {
         const container = this.container.querySelector("#categoriesContainer");
         if (!container) return;
@@ -352,6 +367,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.attachEventListeners();
     }
 
+    // Builds the HTML markup for a single category card including header and questions.
     private renderCategory(cat: QuestionCategory): string {
         const progressWidth = cat.percent || 0;
         const statusClass = cat.nb_answers >= cat.questions.length ? 'full' : 'partial';
@@ -399,6 +415,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         `;
     }
 
+    // Generates the question row markup with status, actions, and dynamic answer controls.
     private renderQuestion(q: AuditQuestion, cat: QuestionCategory): string {
         const answeredClass = q.sku || q.nonSkuSubQuestion || q.q1q2 ? 'answered-bold' : '';
         
@@ -423,6 +440,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         `;
     }
 
+    // Returns the proper answer input markup depending on the question type.
     private renderAnswerInput(q: AuditQuestion, cat: QuestionCategory): string {
         if (q.nov_answertype === 181910001 && q.nov_questiontype === 181910001) {
             return `
@@ -466,6 +484,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return '<td></td>';
     }
 
+    // Builds the toggle bubble for revealing nested subquestions when they exist.
     private renderSubquestionBubble(q: AuditQuestion): string {
         if (q.nonSkuSubQuestion && q.subquestions && q.subquestions.length > 0) {
             const answeredCount = q.subquestions.filter(sub => sub.answered).length;
@@ -512,6 +531,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return '';
     }
 
+    // Displays the Q1/Q2 calculated score block when the question represents that flow.
     private renderQ1Q2Score(q: AuditQuestion): string {
         if (q.q1q2) {
             return `
@@ -524,6 +544,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return '';
     }
 
+    // Produces the expandable table of subquestions tied to a parent question.
     private renderSubquestions(q: AuditQuestion): string {
         const showSub = q.showsub || false;
         const colspan = q.q1q2 ? '3' : '2';
@@ -565,6 +586,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return '';
     }
 
+    // Creates a table row describing a single subquestion and its answer controls.
     private renderSubquestionRow(sub: SubQuestion, parentQuestion: AuditQuestion): string {
         return `
             <div class="sub_question">
@@ -580,6 +602,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         `;
     }
 
+    // Renders the appropriate input element for a subquestion based on answer type.
     private renderSubquestionInput(sub: SubQuestion, parentQuestion: AuditQuestion): string {
         if (sub.cgi_answertype === 181910000) {
             return `
@@ -618,6 +641,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return '<td></td>';
     }
 
+    // Constructs a table row for a SKU child question underneath its parent.
     private renderSkuRow(sku: AuditQuestion, parentQuestion: AuditQuestion): string {
         const details = parentQuestion.sku 
             ? ` <span style="color:#585858ad">/ Target: ${sku.nov_target_formatted || ''} / Product Range: ${sku._nov_productrange_value_formatted || ''} / Life Stage: ${sku.nov_lifestage_formatted || ''} / Stock Weight: ${sku.stockweight_formatted || ''}</span>`
@@ -639,6 +663,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         `;
     }
 
+    // Renders either radio buttons or numeric inputs for SKU answer capture.
     private renderSkuInput(sku: AuditQuestion, parentQuestion: AuditQuestion): string {
         if (sku.nov_answertype === 181910000) {
             return `
@@ -678,6 +703,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return '<td></td>';
     }
 
+    // Hooks up event handlers for dynamically generated controls after each render.
     private attachEventListeners(): void {
         this.container.querySelectorAll(".collapse-btn").forEach(btn => {
             btn.addEventListener("click", (e) => {
@@ -734,6 +760,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Expands or collapses the question description tooltip for the requested question.
     private toggleDescription(qId: string): void {
         for (const cat of this.catquestions) {
             const q = cat.questions.find((question: AuditQuestion) => question.id === qId);
@@ -745,6 +772,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Shows or hides the block of subquestions associated with a question.
     private toggleSubquestions(qId: string): void {
         for (const cat of this.catquestions) {
             const q = cat.questions.find((question: AuditQuestion) => question.id === qId);
@@ -789,7 +817,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.calculateScores(question, cat);
         this.saveOfflineData();
         this.renderCategories();
-        this.showSuccess();
+        //this.showSuccess();
         this.notifyOutputChanged();
     }
 
@@ -830,7 +858,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
                     this.calculateScores(question, cat);
                     this.saveOfflineData();
                     this.renderCategories();
-                    this.showSuccess();
+                    //this.showSuccess();
                     this.notifyOutputChanged();
                     break;
                 }
@@ -870,7 +898,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
                     this.calculateScores(parentQuestion, cat);
                     this.saveOfflineData();
                     this.renderCategories();
-                    this.showSuccess();
+                    //this.showSuccess();
                     this.notifyOutputChanged();
                     break;
                 }
@@ -895,6 +923,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Recomputes scoring metrics for a question, its category rollup, and related SKU aggregates.
     private calculateScores(question: AuditQuestion, category: QuestionCategory): void {
         this.calculateQuestionScore(question);
         this.sumCategoryScoring(category.id);
@@ -907,6 +936,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.checkCACompliance();
     }
 
+    // Dispatches scoring logic based on question type and cached scoring rules.
     private calculateQuestionScore(question: AuditQuestion): void {
         if (!question.scoring_rules || question.scoring_rules.length === 0) {
             question.nov_px_score = 0;
@@ -936,6 +966,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Evaluates numerical answers against configured scoring rules and returns the resulting score.
     private numericalCalculation(question: AuditQuestion): number {
         const rules = question.scoring_rules || [];
         const sortedRules = [...rules].sort((a, b) => a.nov_threshold - b.nov_threshold);
@@ -962,6 +993,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return 0;
     }
 
+    // Resolves the target score for list-option answers according to the selected rule.
     private listOptionCalculation(question: AuditQuestion): number {
         if (!question.list_options || !question.scoring_rules) return 0;
         
@@ -972,6 +1004,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return matchedRule?.nov_target || 0;
     }
 
+    // Aggregates SKU subquestion answers into PerfectX and Trade Terms score buckets.
     private calculateSKUPerfectXScore(question: AuditQuestion): void {
         const questionScoringRules = question.scoring_rules;
         
@@ -1017,6 +1050,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Re-evaluates all scores and SKU-based metrics (must have, next best, etc.) after a change.
     private calculateAllSkuScores(): void {
         this.mustHaveDog();
         this.mustHaveCat();
@@ -1040,6 +1074,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.otherDog();
     }
 
+    // MustHaveDog : Calculates the percentage of dog SKUs that satisfy the must-have range.
     private mustHaveDog(): void {
         let value = 0;
         let totalDog = 0;
@@ -1068,6 +1103,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_musthavedog = value;
     }
 
+    // MustHaveCat : Calculates the percentage of cat SKUs that satisfy the must-have range.
     private mustHaveCat(): void {
         let value = 0;
         let totalCat = 0;
@@ -1096,6 +1132,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_musthavecat = value;
     }
 
+    // totalMustHave : Computes overall compliance across cat and dog must-have ranges.
     private totalMustHave(): void {
         let totalMustHaveValue = 0;
         let answeredMustHaveValue = 0;
@@ -1123,6 +1160,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_totalmusthave = value;
     }
 
+    // totalDog : Measures dog coverage across all SKU responses.
     private totalDog(): void {
         let totalDogValue = 0;
         let answeredValue = 0;
@@ -1147,6 +1185,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_totaldog = value;
     }
 
+    // totalCat : Measures cat coverage across all SKU responses.
     private totalCat(): void {
         let totalCatValue = 0;
         let answeredValue = 0;
@@ -1171,6 +1210,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_totalcat = value;
     }
 
+    // nextBestDog : Calculates next-best dog assortment compliance.
     private nextBestDog(): void {
         let totalValue = 0;
         let answeredValue = 0;
@@ -1198,6 +1238,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_nextbestdog = value;
     }
 
+    // nextBestCat : Calculates next-best cat assortment compliance.
     private nextBestCat(): void {
         let totalValue = 0;
         let answeredValue = 0;
@@ -1225,6 +1266,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_nextbestcat = value;
     }
 
+    // totalNextBest : Aggregates next-best compliance across cat and dog.
     private totalNextBest(): void {
         let totalNextBestValue = 0;
         let answeredNextBestValue = 0;
@@ -1252,6 +1294,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_totalnextbest = value;
     }
 
+    // otherCat : Counts cat SKUs flagged as "Other" with a positive response.
     private otherCat(): void {
         let totalValue = 0;
         let answeredValue = 0;
@@ -1279,6 +1322,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_othercat = value;
     }
 
+    // otherDog : Counts dog SKUs flagged as "Other" with a positive response.
     private otherDog(): void {
         let totalValue = 0;
         let answeredValue = 0;
@@ -1306,6 +1350,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_otherdog = value;
     }
 
+    // dogDry : Totals dog dry SKUs answered positively.
     private dogDry(): void {
         let value = 0;
         
@@ -1323,6 +1368,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_dogdry = value;
     }
 
+    // dogWet : Totals dog wet SKUs answered positively.
     private dogWet(): void {
         let value = 0;
         
@@ -1340,6 +1386,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_dogwet = value;
     }
 
+    // catDry : Totals cat dry SKUs answered positively.
     private catDry(): void {
         let value = 0;
         
@@ -1357,6 +1404,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_catdry = value;
     }
 
+    // catWet : Totals cat wet SKUs answered positively.
     private catWet(): void {
         let value = 0;
         
@@ -1374,6 +1422,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_catwet = value;
     }
 
+    // catReportingRange : Counts cat SKUs that have reporting range data with a "Yes" answer.
     private catReportingRange(): void {
         let value = 0;
         
@@ -1394,6 +1443,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_catreportingrange = value;
     }
 
+    // dogReportingRange : Counts dog SKUs that have reporting range data with a "Yes" answer.
     private dogReportingRange(): void {
         let value = 0;
         
@@ -1414,11 +1464,13 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_dogreportingrange = value;
     }
 
+    // reportingRange : Mirrors the template reporting range onto the audit totals.
     private reportingRange(): void {
         const value = this.globalTemplate.cgi_reportingrange || 0;
         this.globalEntity.cgi_reportingrange = value;
     }
 
+    // catTerritory : Counts cat SKUs that carry territory data and were answered "Yes".
     private catTerritory(): void {
         let value = 0;
         
@@ -1439,6 +1491,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_catterritory = value;
     }
 
+    // dogTerritory : Counts dog SKUs that carry territory data and were answered "Yes".
     private dogTerritory(): void {
         let value = 0;
         
@@ -1459,11 +1512,13 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.globalEntity.cgi_dogterritory = value;
     }
 
+    // territory : Mirrors the template territory value to the audit entity.
     private territory(): void {
         const value = this.globalTemplate.cgi_territory || 0;
         this.globalEntity.cgi_territory = value;
     }
 
+    // Sums up audit-level scores and flags whether every category has been fully answered.
     private updateAllAuditScores(): void {
         let totalPx = 0;
         this.catquestions.forEach(cat => {
@@ -1490,6 +1545,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Evaluates CA regulatory compliance requirements across main and subquestions.
     private checkCACompliance(): void {
         try {
             let isCACompliant = false;
@@ -1680,6 +1736,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.renderCategories();
     }
 
+    // Displays a transient error banner with the supplied message.
     private showError(message: string): void {
         const alertDiv = this.container.querySelector("#alertMessage");
         if (alertDiv) {
@@ -1691,6 +1748,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Shows a brief confirmation toast when data is saved locally.
     private showSuccess(): void {
         const successDiv = this.container.querySelector("#savedMessage");
         if (successDiv) {
@@ -1701,6 +1759,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Reacts to input changes from the PCF framework, refreshing audit data when identifiers change.
     public updateView(context: ComponentFramework.Context<IInputs>): void {
         this.context = context;
         this.checkOnlineStatus();
@@ -1717,6 +1776,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         }
     }
 
+    // Provides aggregate metrics and serialized deltas back to the hosting Canvas App.
     public getOutputs(): IOutputs {
         return {
             completionPercentage: this.calculateOverallCompletion(),
@@ -1728,6 +1788,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         };
     }
 
+    // Returns the overall percentage of answered questions across all categories.
     private calculateOverallCompletion(): number {
         let totalQuestions = 0;
         let answeredQuestions = 0;
@@ -1740,10 +1801,12 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         return totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
     }
 
+    // Calculates the summed PerfectX score across every category.
     private calculateTotalScore(): number {
         return this.catquestions.reduce((total, cat) => total + (cat.px || 0), 0);
     }
 
+    // Persists the latest offline snapshot when the control is torn down.
     public destroy(): void {
         this.saveOfflineData();
     }

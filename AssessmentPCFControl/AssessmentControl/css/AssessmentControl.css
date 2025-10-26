@@ -1,0 +1,369 @@
+/* Material Icons Font - Import at top */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+.alertMessage {
+    width: 100%;
+    padding: 15px;
+    background-color: red;
+    color: #FFF;
+    text-align: center;
+    display: none;
+}
+
+.savedMessage {
+    width: 100%;
+    padding: 15px;
+    background-color: #2bcd54;
+    color: #FFF;
+    text-align: center;
+    display: none;
+}
+
+.s2s-container {
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow-y: auto;
+    max-height: 100%;
+}
+
+.label {
+    margin-left: 10px;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    vertical-align: middle;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+/* Category Styles */
+.s2s-category {
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.status_bubble {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    color: white;
+}
+
+.status_bubble.full {
+    background-color: #4CAF50;
+}
+
+.status_bubble.partial {
+    background-color: #FF9800;
+}
+
+.blue_bubble {
+    background-color: #2196F3;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.icon {
+    cursor: pointer;
+    font-family: 'Material Icons';
+    font-size: 24px;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.icon.active {
+    color: #2196F3;
+}
+
+.icon.active:hover {
+    color: #1976D2;
+}
+
+.gray_line {
+    height: 2px;
+    background-color: #ddd;
+    margin: 10px 0;
+}
+
+/* Progress Bar */
+.progress-container {
+    width: 100%;
+    height: 8px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
+    transition: width 0.3s ease;
+}
+
+/* Question List */
+.question_list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+}
+
+.question_list li {
+    margin-bottom: 10px;
+    padding: 12px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    border-left: 3px solid #2196F3;
+    transition: background-color 0.2s;
+}
+
+.question_list li:hover {
+    background-color: #f0f0f0;
+}
+
+.tab_question_line {
+    width: 100%;
+}
+
+.tab_question_line td {
+    vertical-align: middle;
+    padding: 5px;
+}
+
+.q_question {
+    font-size: 14px;
+    margin-left: 10px;
+    color: #333;
+}
+
+.q_question.answered-bold {
+    font-weight: bold;
+    color: #1976D2;
+}
+
+.q_description {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #e8f4f8;
+    border-left: 3px solid #2196F3;
+    font-size: 12px;
+    border-radius: 4px;
+    color: #555;
+}
+
+/* Input Styles */
+.inputnb, .inputslct {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100%;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.inputnb:focus, .inputslct:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.inputnb:disabled, .inputslct:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+/* Radio Buttons */
+.custom-radio {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.custom-radio input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    margin: 0 5px 0 0;
+    cursor: pointer;
+}
+
+.custom-radio input[type="radio"]:disabled {
+    cursor: not-allowed;
+}
+
+.custom-radio label {
+    cursor: pointer;
+    user-select: none;
+    font-size: 14px;
+}
+
+/* Sub-questions */
+.subquestion_bubble {
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.subquestion_bubble:hover {
+    transform: scale(1.05);
+}
+
+.subquestion_bubble.green_cl {
+    background-color: #4CAF50;
+}
+
+.subquestion_bubble.red_cl {
+    background-color: #f44336;
+}
+
+.sub_question {
+    padding: 12px;
+    margin: 5px 0;
+    background-color: #fff;
+    border-left: 3px solid #2196F3;
+    border-radius: 4px;
+}
+
+.sub_question table {
+    width: 100%;
+}
+
+.sub_question td {
+    padding: 8px;
+    vertical-align: middle;
+}
+
+/* Number Block */
+.nb_block {
+    display: inline-block;
+    padding: 5px 8px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Info Icon */
+.quest {
+    cursor: pointer;
+    vertical-align: middle;
+    color: #2196F3;
+    transition: color 0.2s;
+}
+
+.quest:hover {
+    color: #1976D2;
+}
+
+/* Material Icons */
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 20px;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .s2s-container {
+        padding: 10px;
+    }
+    
+    .s2s-category {
+        padding: 10px;
+    }
+    
+    .question_list li {
+        padding: 8px;
+    }
+    
+    .custom-radio {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
+/* Scrollbar Styling */
+.s2s-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.s2s-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.s2s-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.s2s-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

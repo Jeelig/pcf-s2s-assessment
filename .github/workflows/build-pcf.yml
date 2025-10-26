@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: assessment-pcf-control
-          path: out
+          path: AssessmentPCFControl/out
 
   solution-build:
     runs-on: windows-latest
@@ -62,8 +62,46 @@ jobs:
         run: npm ci
         working-directory: AssessmentPCFControl
 
+      - name: Compute solution version
+        id: version
+        run: |
+          $major = 1
+          $baseMinor = 0
+          $runNumber = [int]$env:GITHUB_RUN_NUMBER
+          $minor = $baseMinor + [math]::Floor($runNumber / 1000)
+          $patch = $runNumber % 1000
+          $version = "{0}.{1}.{2}" -f $major, $minor, $patch
+          if ($patch -eq 0 -and $runNumber -ne 0) {
+            $version = "{0}.{1}.0" -f $major, $minor
+          }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
+
+      - name: Update solution version
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          Write-Host "Setting solution version to $version"
+          $solutionPath = 'src/Other/Solution.xml'
+          [xml]$solutionXml = Get-Content -Path $solutionPath
+          $solutionXml.ImportExportXml.SolutionManifest.Version = $version
+          $solutionXml.Save($solutionPath)
+
       - name: Build Power Platform solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
+
+      - name: Rename solution packages
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $releaseDir = Join-Path $PWD 'bin/Release'
+          $unmanagedSource = Join-Path $releaseDir 'AssessmentPCF.zip'
+          $managedSource = Join-Path $releaseDir 'AssessmentPCF_managed.zip'
+          if (Test-Path $unmanagedSource) {
+            $unmanagedTarget = Join-Path $releaseDir ("AssessmentPCF_v{0}.zip" -f $version)
+            Move-Item -Path $unmanagedSource -Destination $unmanagedTarget -Force
+          }
+          if (Test-Path $managedSource) {
+            $managedTarget = Join-Path $releaseDir ("AssessmentPCF_managed_v{0}.zip" -f $version)
+            Move-Item -Path $managedSource -Destination $managedTarget -Force
+          }
 
       - name: Validate solution package structure
         run: |
@@ -86,6 +124,5 @@ jobs:
       - name: Upload solution package
         uses: actions/upload-artifact@v4
         with:
-          name: assessment-pcf-solution
-          path: |
-            bin/Release/**/*.zip
+          name: AssessmentPCF_v${{ steps.version.outputs.version }}
+          path: bin/Release/AssessmentPCF_v${{ steps.version.outputs.version }}.zip

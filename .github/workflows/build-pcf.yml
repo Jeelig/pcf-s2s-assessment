@@ -1,4 +1,4 @@
-name: Build PCF Control
+name: Build PCF Solution
 
 on:
   workflow_dispatch:
@@ -12,7 +12,6 @@ jobs:
     defaults:
       run:
         shell: pwsh
-        working-directory: AssessmentPCFControl
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,12 +25,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: AssessmentPCFControl
 
-      - name: Build PCF control
-        run: npm run build
+      - name: Build Power Platform solution
+        run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
 
-      - name: Upload build artifacts
+      - name: Upload solution package
         uses: actions/upload-artifact@v4
         with:
-          name: pcf-build-output
-          path: AssessmentPCFControl/out
+          name: assessment-pcf-solution
+          path: |
+            bin/Release/*.zip

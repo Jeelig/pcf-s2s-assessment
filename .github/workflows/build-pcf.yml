@@ -39,6 +39,9 @@ jobs:
   solution-build:
     runs-on: windows-latest
     needs: pcf-build
+    permissions:
+      packages: write
+      contents: write
     defaults:
       run:
         shell: pwsh

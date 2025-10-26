@@ -1,0 +1,37 @@
+2025-10-26 16:18:29.742 - Info	
+Packing C:\ibm-repos\RC\S2S\pcf-s2s-assessment\obj\Release\Metadata to bin\Release\AssessmentPCF.zip and bin\Release\AssessmentPCF_managed.zip
+
+2025-10-26 16:18:29.842 - Info	Processing Component: Entities
+2025-10-26 16:18:29.850 - Info	Processing Component: Roles
+2025-10-26 16:18:29.858 - Info	Processing Component: Workflows
+2025-10-26 16:18:29.859 - Info	Processing Component: FieldSecurityProfiles
+2025-10-26 16:18:29.860 - Info	Processing Component: Templates
+2025-10-26 16:18:29.862 - Info	Processing Component: EntityMaps
+2025-10-26 16:18:29.863 - Info	Processing Component: EntityRelationships
+2025-10-26 16:18:29.922 - Info	Processing Component: OrganizationSettings
+2025-10-26 16:18:29.923 - Info	Processing Component: optionsets
+2025-10-26 16:18:29.924 - Info	Processing Component: CustomControls
+2025-10-26 16:18:29.954 - Info	 - RC.S2S.AssessmentControl
+2025-10-26 16:18:30.139 - Info	Processing Component: SolutionPluginAssemblies
+2025-10-26 16:18:30.140 - Info	Processing Component: EntityDataProviders
+2025-10-26 16:18:30.160 - Info	Processing Sharded Component Files
+2025-10-26 16:18:30.312 - Info	
+Unmanaged Pack complete.
+
+2025-10-26 16:18:30.314 - Info	Processing Component: Entities
+2025-10-26 16:18:30.315 - Info	Processing Component: Roles
+2025-10-26 16:18:30.317 - Info	Processing Component: Workflows
+2025-10-26 16:18:30.319 - Info	Processing Component: FieldSecurityProfiles
+2025-10-26 16:18:30.320 - Info	Processing Component: Templates
+2025-10-26 16:18:30.320 - Info	Processing Component: EntityMaps
+2025-10-26 16:18:30.321 - Info	Processing Component: EntityRelationships
+2025-10-26 16:18:30.323 - Info	Processing Component: OrganizationSettings
+2025-10-26 16:18:30.324 - Info	Processing Component: optionsets
+2025-10-26 16:18:30.325 - Info	Processing Component: CustomControls
+2025-10-26 16:18:30.328 - Info	 - RC.S2S.AssessmentControl
+2025-10-26 16:18:30.332 - Info	Processing Component: SolutionPluginAssemblies
+2025-10-26 16:18:30.332 - Info	Processing Component: EntityDataProviders
+2025-10-26 16:18:30.333 - Info	Processing Sharded Component Files
+2025-10-26 16:18:30.394 - Info	
+Managed Pack complete.
+

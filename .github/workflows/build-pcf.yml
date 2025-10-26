@@ -35,6 +35,24 @@ jobs:
       - name: Build Power Platform solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
 
+      - name: Validate solution package structure
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $required = @('solution.xml','customizations.xml','[Content_Types].xml')
+          Get-ChildItem -Path bin/Release -Filter '*.zip' | ForEach-Object {
+            $zip = [IO.Compression.ZipFile]::OpenRead($_.FullName)
+            try {
+              $entries = $zip.Entries.FullName
+              foreach ($file in $required) {
+                if (-not ($entries -contains $file)) {
+                  throw "Package '$($_.Name)' is missing required root file '$file'."
+                }
+              }
+            } finally {
+              $zip.Dispose()
+            }
+          }
+
       - name: Upload solution package
         uses: actions/upload-artifact@v4
         with:

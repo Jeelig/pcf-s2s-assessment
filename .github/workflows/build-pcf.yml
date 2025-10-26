@@ -121,8 +121,14 @@ jobs:
             }
           }
 
-      - name: Upload solution package
-        uses: actions/upload-artifact@v4
+      - name: Publish solution package
+        uses: softprops/action-gh-release@v1
         with:
-          name: AssessmentPCF_v${{ steps.version.outputs.version }}
-          path: bin/Release/AssessmentPCF_v${{ steps.version.outputs.version }}.zip
+          tag_name: v${{ steps.version.outputs.version }}
+          name: AssessmentPCF v${{ steps.version.outputs.version }}
+          files: bin/Release/AssessmentPCF_v${{ steps.version.outputs.version }}.zip
+          draft: false
+          prerelease: false
+          allow_updates: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -10,6 +10,8 @@ on:
 jobs:
   pcf-build:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     defaults:
       run:
         shell: pwsh
@@ -24,6 +26,28 @@ jobs:
           node-version: 18
           cache: npm
           cache-dependency-path: AssessmentPCFControl/package-lock.json
+
+      - name: Compute package version
+        id: version
+        run: |
+          $major = 1
+          $baseMinor = 0
+          $runNumber = [int]$env:GITHUB_RUN_NUMBER
+          $minor = $baseMinor + [math]::Floor($runNumber / 1000)
+          $patch = $runNumber % 1000
+          $version = "{0}.{1}.{2}" -f $major, $minor, $patch
+          if ($patch -eq 0 -and $runNumber -ne 0) {
+            $version = "{0}.{1}.0" -f $major, $minor
+          }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
+
+      - name: Update control manifest version
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $manifestPath = 'AssessmentControl/ControlManifest.Input.xml'
+          [xml]$manifest = Get-Content -Path $manifestPath
+          $manifest.manifest.control.version = $version
+          $manifest.Save($manifestPath)
 
       - name: Install dependencies
         run: npm ci
@@ -66,23 +90,9 @@ jobs:
         run: npm ci
         working-directory: AssessmentPCFControl
 
-      - name: Compute solution version
-        id: version
-        run: |
-          $major = 1
-          $baseMinor = 0
-          $runNumber = [int]$env:GITHUB_RUN_NUMBER
-          $minor = $baseMinor + [math]::Floor($runNumber / 1000)
-          $patch = $runNumber % 1000
-          $version = "{0}.{1}.{2}" -f $major, $minor, $patch
-          if ($patch -eq 0 -and $runNumber -ne 0) {
-            $version = "{0}.{1}.0" -f $major, $minor
-          }
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
-
       - name: Update solution version
         run: |
-          $version = '${{ steps.version.outputs.version }}'
+          $version = '${{ needs.pcf-build.outputs.version }}'
           Write-Host "Setting solution version to $version"
           $solutionPath = 'src/Other/Solution.xml'
           [xml]$solutionXml = Get-Content -Path $solutionPath
@@ -94,7 +104,7 @@ jobs:
 
       - name: Rename solution packages
         run: |
-          $version = '${{ steps.version.outputs.version }}'
+          $version = '${{ needs.pcf-build.outputs.version }}'
           $releaseDir = Join-Path $PWD 'bin/Release'
           $unmanagedSource = Join-Path $releaseDir 'AssessmentPCF.zip'
           $managedSource = Join-Path $releaseDir 'AssessmentPCF_managed.zip'
@@ -129,7 +139,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $version = '${{ steps.version.outputs.version }}'
+          $version = '${{ needs.pcf-build.outputs.version }}'
           $tag = "v$version"
           $asset = "bin/Release/AssessmentPCF_v$version.zip"
           Write-Host "Publishing release $tag with asset $asset"

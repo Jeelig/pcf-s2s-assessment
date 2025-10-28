@@ -27,18 +27,40 @@ jobs:
           cache: npm
           cache-dependency-path: AssessmentPCFControl/package-lock.json
 
-      - name: Compute package version
+      - name: Bump PCF version
         id: version
+        env:
+          CURRENT_VERSION: ${{ vars.PCF_VERSION }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          $major = 1
-          $baseMinor = 0
-          $runNumber = [int]$env:GITHUB_RUN_NUMBER
-          $minor = $baseMinor + [math]::Floor($runNumber / 1000)
-          $patch = $runNumber % 1000
-          $version = "{0}.{1}.{2}" -f $major, $minor, $patch
-          if ($patch -eq 0 -and $runNumber -ne 0) {
-            $version = "{0}.{1}.0" -f $major, $minor
+          $current = $env:CURRENT_VERSION
+          if ([string]::IsNullOrWhiteSpace($current)) {
+            throw "Repository variable PCF_VERSION is not defined."
           }
+
+          try {
+            [version]$parsed = $current
+          } catch {
+            throw "PCF_VERSION '$current' is not a valid semantic version (expected format Major.Minor.Patch)."
+          }
+
+          $major = $parsed.Major
+          $minor = $parsed.Minor
+          $patch = $parsed.Build
+
+          if ($patch -lt 100) {
+            $patch++
+          } else {
+            $minor++
+            $patch = 0
+          }
+
+          $version = "{0}.{1}.{2}" -f $major, $minor, $patch
+
+          gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/actions/variables/PCF_VERSION" -f name=PCF_VERSION -f value=$version > $null
+
+          Write-Host "Bumped PCF_VERSION from $current to $version"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
 
       - name: Update control manifest version

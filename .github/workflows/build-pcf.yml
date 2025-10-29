@@ -155,7 +155,7 @@ jobs:
           $xml.ImportExportXml.SolutionManifest.Version = $version
           $xml.Save($xmlPath)
 
-      - name: Debug - List entire project structure after build
+      - name: Debug - Search and stop on ControlManifest.Input.xml
         if: always()
         run: |
           Write-Host "=== FULL PROJECT TREE AFTER BUILD ==="
@@ -170,20 +170,28 @@ jobs:
           }
           Write-Host "=== END out CONTENTS ==="
 
-          Write-Host "=== SEARCH FOR ANY manifest.xml or ControlManifest*.xml ==="
-          $foundManifest = $false
+          Write-Host "=== SEARCH FOR ControlManifest.Input.xml (EARLY STOP) ==="
+          $foundExact = $false
+          $stoppedEarly = $false
 
-          foreach ($file in Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -ErrorAction SilentlyContinue) {
-            Write-Host "Found: $($file.FullName)"
-            $foundManifest = $true
-            if ($file.Name -eq "ControlManifest.Input.xml") {
-              Write-Host ">>> Found ControlManifest.Input.xml — stopping search."
-              break
+          Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              if ($foundExact) { return }  # Sécurité : ne traite pas les suivants
+
+              Write-Host "Found manifest: $($_.FullName)"
+
+              if ($_.Name -eq "ControlManifest.Input.xml") {
+                Write-Host ">>> FOUND EXACT FILE: $($_.FullName) — STOPPING SEARCH NOW."
+                $foundExact = $true
+                $stoppedEarly = $true
+                return  # Sort de ForEach-Object → arrête la pipeline
+              }
             }
-          }
 
-          if (-not $foundManifest) {
-            Write-Host "NO MANIFEST FILES FOUND ANYWHERE"
+          if (-not $foundExact) {
+            Write-Host "ControlManifest.Input.xml NOT FOUND"
+          } elseif ($stoppedEarly) {
+            Write-Host "Search stopped early after finding the target file."
           }
 
           Write-Host "=== END SEARCH ==="

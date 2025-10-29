@@ -113,7 +113,15 @@ jobs:
         run: |
           Write-Host "=== OUT FOLDER STRUCTURE ==="
           if (Test-Path 'out') {
-            Get-ChildItem 'out' -Recurse | Format-Tree
+            Get-ChildItem 'out' -Recurse | ForEach-Object {
+              $depth = ($_.FullName -replace [regex]::Escape($PWD), '' -split '\\').Count - 1
+              $indent = '  ' * $depth
+              if ($_.PSIsContainer) {
+                Write-Host "$indent[+] $($_.Name)"
+              } else {
+                Write-Host "$indent  - $($_.Name)"
+              }
+            }
           } else {
             Write-Host "NO 'out' FOLDER"
           }
@@ -130,13 +138,15 @@ jobs:
             throw "ControlManifest.xml not found in out/controls/AssessmentControl/"
           }
 
+          Write-Host "Found manifest at: $manifestPath"
+
           $content = Get-Content $manifestPath -Raw
           if ($content -match 'version="([^"]+)"') {
             $actual = $matches[1]
             if ($actual -eq $expected) {
               Write-Host "VERSION OK: $actual"
             } else {
-              Write-Host "CONTENT SNIPPET:"
+              Write-Host "CONTENT SNIPPET (first 10 lines):"
               $content -split "`n" | Select-Object -First 10
               throw "VERSION MISMATCH! Expected: $expected, Got: $actual"
             }

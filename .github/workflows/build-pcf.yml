@@ -185,6 +185,9 @@ jobs:
 
                 if ($item.Name -eq $TargetFileName) {
                   Write-Host ">>> Found $TargetFileName at $relPath — stopping tree traversal."
+                  Write-Host "=== CONTENT OF $TargetFileName ==="
+                  Get-Content $item.FullName | Write-Host
+                  Write-Host "=== END CONTENT ==="
                   $found = $true
                 }
               }
@@ -226,6 +229,9 @@ jobs:
 
               if ($_.Name -eq "ControlManifest.Input.xml") {
                 Write-Host ">>> FOUND EXACT FILE: $($_.FullName) — STOPPING SEARCH NOW."
+                Write-Host "=== CONTENT OF ControlManifest.Input.xml ==="
+                Get-Content $_.FullName | Write-Host
+                Write-Host "=== END CONTENT ==="
                 $foundExact = $true
                 return  # Arrête la pipeline
               }

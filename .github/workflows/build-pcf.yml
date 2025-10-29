@@ -92,10 +92,13 @@ jobs:
 
       - name: Validate ControlManifest.xml version
         run: |
-          $manifestOut = 'out/ControlManifest.xml'
-          if (-not (Test-Path $manifestOut)) {
-            throw "Built manifest not found: $manifestOut"
+          $manifestRoot = 'out'
+          $manifestMatch = Get-ChildItem -Path $manifestRoot -Filter 'ControlManifest.xml' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $manifestMatch) {
+            throw "Built manifest not found under '$manifestRoot'."
           }
+          $manifestOut = $manifestMatch.FullName
+          Write-Host "Found built manifest at $manifestOut"
           $line = Select-String -Path $manifestOut -Pattern 'version="' | Select-Object -First 1
           Write-Host "Built manifest version: $line"
 

@@ -94,9 +94,6 @@ jobs:
           if (Test-Path 'out') { Remove-Item -Recurse -Force 'out'; Write-Host "Cleaned out/" }
 
       - name: Build PCF control
-        run: npx pcf-scripts build
-
-      - name: Build PCF control
         run: npm run build
 
       - name: Validate built ControlManifest.xml
@@ -147,9 +144,11 @@ jobs:
         with:
           dotnet-version: 6.x
 
-      - name: Install PCF deps
-        run: npm ci
-        working-directory: AssessmentPCFControl
+      - name: Download PCF artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: assessment-pcf-control
+          path: AssessmentPCFControl/out/
 
       - name: Update solution version
         run: |
@@ -159,13 +158,13 @@ jobs:
           $xml.ImportExportXml.SolutionManifest.Version = $version
           $xml.Save($xmlPath)
 
-      - name: Debug - List and search with early stop on ControlManifest.Input.xml
+      - name: Debug - List and search with early stop on ControlManifest.xml
         if: always()
         run: |
           function List-DirectoryUntilFound {
             param (
               [string]$CurrentPath = ".",
-              [string]$TargetFileName = "ControlManifest.Input.xml",
+              [string]$TargetFileName = "ControlManifest.xml",
               [string]$BasePath = (Resolve-Path ".").Path
             )
 
@@ -196,10 +195,12 @@ jobs:
                   [xml]$xml = Get-Content $item.FullName -Raw
                   $control = $xml.manifest.control
                   if ($control -and $control.version) {
-                    $old = $control.version
-                    $control.version = $version
-                    $xml.Save($item.FullName)
-                    Write-Host "Updated manifest version: $old to $version"
+                    $actual = $control.version
+                    if ($actual -eq $version) {
+                      Write-Host "Manifest version correct: $actual"
+                    } else {
+                      throw "Manifest version mismatch: expected $version, got $actual"
+                    }
                   } else {
                     throw "No <control> with 'version' attribute in manifest XML"
                   }
@@ -213,8 +214,8 @@ jobs:
             return $found
           }
 
-          Write-Host "=== FULL PROJECT TREE AFTER BUILD (early stop on ControlManifest.Input.xml) ==="
-          $treeStopped = List-DirectoryUntilFound
+          Write-Host "=== FULL PROJECT TREE AFTER BUILD (early stop on ControlManifest.xml) ==="
+          $treeStopped = List-DirectoryUntilFound -CurrentPath "AssessmentPCFControl/out"
           if ($treeStopped) {
             Write-Host "Tree listing stopped early after finding the target file."
           } else {
@@ -222,41 +223,43 @@ jobs:
           }
           Write-Host "=== END TREE ==="
 
-          Write-Host "=== CONTENTS OF 'out' FOLDER (if exists, with early stop) ==="
-          if (Test-Path 'out') {
-            $outStopped = List-DirectoryUntilFound -CurrentPath 'out'
+          Write-Host "=== CONTENTS OF 'AssessmentPCFControl/out' FOLDER (if exists, with early stop) ==="
+          if (Test-Path 'AssessmentPCFControl/out') {
+            $outStopped = List-DirectoryUntilFound -CurrentPath 'AssessmentPCFControl/out'
             if ($outStopped) {
               Write-Host "out listing stopped early after finding the target file."
             } else {
               Write-Host "Target file not found in out."
             }
           } else {
-            Write-Host "NO 'out' FOLDER FOUND"
+            Write-Host "NO 'AssessmentPCFControl/out' FOLDER FOUND"
           }
           Write-Host "=== END out CONTENTS ==="
 
-          Write-Host "=== SEARCH FOR *manifest*.xml (early stop on ControlManifest.Input.xml) ==="
+          Write-Host "=== SEARCH FOR *manifest*.xml (early stop on ControlManifest.xml) ==="
           $foundExact = $false
 
-          Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -ErrorAction SilentlyContinue |
+          Get-ChildItem -Path 'AssessmentPCFControl/out' -Recurse -Filter "*manifest*.xml" -ErrorAction SilentlyContinue |
             ForEach-Object {
               if ($foundExact) { return }  # Skip si déjà trouvé
 
               Write-Host "Found manifest: $($_.FullName)"
 
-              if ($_.Name -eq "ControlManifest.Input.xml") {
+              if ($_.Name -eq "ControlManifest.xml") {
                 Write-Host ">>> FOUND EXACT FILE: $($_.FullName) — STOPPING SEARCH NOW."
-                Write-Host "=== CONTENT OF ControlManifest.Input.xml ==="
+                Write-Host "=== CONTENT OF ControlManifest.xml ==="
                 Get-Content $_.FullName | Write-Host
                 
                 $version = '${{ needs.pcf-build.outputs.version }}'
                 [xml]$xml = Get-Content $_.FullName -Raw
                 $control = $xml.manifest.control
                 if ($control -and $control.version) {
-                  $old = $control.version
-                  $control.version = $version
-                  $xml.Save($_.FullName)
-                  Write-Host "Updated manifest version: $old to $version"
+                  $actual = $control.version
+                  if ($actual -eq $version) {
+                    Write-Host "Manifest version correct: $actual"
+                  } else {
+                    throw "Manifest version mismatch: expected $version, got $actual"
+                  }
                 } else {
                   throw "No <control> with 'version' attribute in manifest XML"
                 }
@@ -268,13 +271,13 @@ jobs:
             }
 
           if (-not $foundExact) {
-            Write-Host "ControlManifest.Input.xml NOT FOUND"
+            Write-Host "ControlManifest.xml NOT FOUND"
           }
 
           Write-Host "=== END SEARCH ==="
 
       - name: Build solution
-        run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
+        run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release /p:BuildProjectReferences=false
 
       - name: Rename packages
         run: |

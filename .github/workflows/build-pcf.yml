@@ -61,25 +61,28 @@ jobs:
 
           $version = "{0}.{1}.{2}" -f $major, $minor, $patch
 
-          # Met à jour la variable GitHub
+          # Mise à jour de la variable GitHub
           gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/actions/variables/PCF_VERSION" `
             -f name=PCF_VERSION -f value=$version > $null
 
-          Write-Host "✅ Bumped PCF_VERSION from $current to $version"
+          Write-Host "Bumped PCF_VERSION from $current to $version"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
 
       - name: Update ControlManifest.Input.xml version
         run: |
           $version = '${{ steps.version.outputs.version }}'
           $manifestPath = 'AssessmentControl/ControlManifest.Input.xml'
+          
+          if (-not (Test-Path $manifestPath)) {
+            throw "Manifest file not found: $manifestPath"
+          }
+
           Write-Host "Updating manifest version to $version"
-          [xml]$manifest = Get-Content -Path $manifestPath
+          [xml]$manifest = Get-Content -Path $manifestPath -Raw
           $manifest.manifest.control.version = $version
           $manifest.Save($manifestPath)
 
-          Write-Host "✅ ControlManifest.Input.xml updated successfully"
-          # Affiche un extrait de validation
-          Select-String -Path $manifestPath -Pattern "version=" | Select-Object -First 1
+          Write-Host "ControlManifest.Input.xml updated to version $version"
 
       - name: Install dependencies
         run: npm ci
@@ -87,11 +90,21 @@ jobs:
       - name: Build PCF control
         run: npm run build
 
+      - name: Validate ControlManifest.xml version
+        run: |
+          $manifestOut = 'out/ControlManifest.xml'
+          if (-not (Test-Path $manifestOut)) {
+            throw "Built manifest not found: $manifestOut"
+          }
+          $line = Select-String -Path $manifestOut -Pattern 'version="' | Select-Object -First 1
+          Write-Host "Built manifest version: $line"
+
       - name: Upload control bundle
         uses: actions/upload-artifact@v4
         with:
           name: assessment-pcf-control
-          path: AssessmentPCFControl/out
+          path: out/
+          retention-days: 7
 
   solution-build:
     runs-on: windows-latest
@@ -118,7 +131,7 @@ jobs:
           cache: npm
           cache-dependency-path: AssessmentPCFControl/package-lock.json
 
-      - name: Install dependencies
+      - name: Install PCF dependencies
         run: npm ci
         working-directory: AssessmentPCFControl
 
@@ -127,9 +140,16 @@ jobs:
           $version = '${{ needs.pcf-build.outputs.version }}'
           Write-Host "Setting solution version to $version"
           $solutionPath = 'src/Other/Solution.xml'
-          [xml]$solutionXml = Get-Content -Path $solutionPath
+          
+          if (-not (Test-Path $solutionPath)) {
+            throw "Solution.xml not found: $solutionPath"
+          }
+
+          [xml]$solutionXml = Get-Content -Path $solutionPath -Raw
           $solutionXml.ImportExportXml.SolutionManifest.Version = $version
           $solutionXml.Save($solutionPath)
+
+          Write-Host "Solution.xml version updated to $version"
 
       - name: Build Power Platform solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
@@ -140,32 +160,44 @@ jobs:
           $releaseDir = Join-Path $PWD 'bin/Release'
           $unmanagedSource = Join-Path $releaseDir 'AssessmentPCF.zip'
           $managedSource = Join-Path $releaseDir 'AssessmentPCF_managed.zip'
+
           if (Test-Path $unmanagedSource) {
-            $unmanagedTarget = Join-Path $releaseDir ("AssessmentPCF_v{0}.zip" -f $version)
-            Move-Item -Path $unmanagedSource -Destination $unmanagedTarget -Force
+            $target = Join-Path $releaseDir ("AssessmentPCF_v{0}.zip" -f $version)
+            Move-Item -Path $unmanagedSource -Destination $target -Force
+            Write-Host "Renamed unmanaged solution to $target"
           }
+
           if (Test-Path $managedSource) {
-            $managedTarget = Join-Path $releaseDir ("AssessmentPCF_managed_v{0}.zip" -f $version)
-            Move-Item -Path $managedSource -Destination $managedTarget -Force
+            $target = Join-Path $releaseDir ("AssessmentPCF_managed_v{0}.zip" -f $version)
+            Move-Item -Path $managedSource -Destination $target -Force
+            Write-Host "Renamed managed solution to $target"
           }
 
       - name: Validate solution package structure
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $required = @('solution.xml','customizations.xml','[Content_Types].xml')
-          Get-ChildItem -Path bin/Release -Filter '*.zip' | ForEach-Object {
-            $zip = [IO.Compression.ZipFile]::OpenRead($_.FullName)
+          $packages = Get-ChildItem -Path bin/Release -Filter '*.zip'
+
+          if ($packages.Count -eq 0) {
+            throw "No solution packages found in bin/Release/"
+          }
+
+          foreach ($pkg in $packages) {
+            Write-Host "Validating package: $($pkg.Name)"
+            $zip = [IO.Compression.ZipFile]::OpenRead($pkg.FullName)
             try {
               $entries = $zip.Entries.FullName
               foreach ($file in $required) {
                 if (-not ($entries -contains $file)) {
-                  throw "Package '$($_.Name)' is missing required root file '$file'."
+                  throw "Package '$($pkg.Name)' is missing required root file '$file'."
                 }
               }
             } finally {
               $zip.Dispose()
             }
           }
+          Write-Host "All solution packages are valid."
 
       - name: Publish solution package
         env:
@@ -174,10 +206,23 @@ jobs:
           $version = '${{ needs.pcf-build.outputs.version }}'
           $tag = "v$version"
           $asset = "bin/Release/AssessmentPCF_v$version.zip"
-          Write-Host "Publishing release $tag with asset $asset"
+          
+          if (-not (Test-Path $asset)) {
+            throw "Release asset not found: $asset"
+          }
+
+          Write-Host "Creating GitHub Release: $tag"
+          
+          # Supprime si existe déjà
           gh release view $tag > $null 2>&1
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Release $tag exists. Deleting before recreate."
-            gh release delete $tag --yes
+            Write-Host "Release $tag exists. Deleting..."
+            gh release delete $tag --yes --cleanup-tag
           }
-          gh release create $tag $asset --title "AssessmentPCF v$version" --notes "Automated build ${{ github.run_number }}"
+
+          # Crée la release
+          gh release create $tag $asset `
+            --title "AssessmentPCF v$version" `
+            --notes "Automated build #${{ github.run_number }} - PCF Control + Solution"
+
+          Write-Host "Release $tag published successfully."

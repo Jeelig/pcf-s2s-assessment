@@ -39,13 +39,13 @@ jobs:
         run: |
           $current = $env:CURRENT_VERSION
           if ([string]::IsNullOrWhiteSpace($current)) {
-            throw "Repository variable PCF_VERSION is not defined."
+            throw "PCF_VERSION repository variable is not set. Go to Settings > Secrets and variables > Actions > Variables."
           }
 
           try {
             [version]$parsed = $current
           } catch {
-            throw "PCF_VERSION '$current' is not a valid semantic version (expected format Major.Minor.Patch)."
+            throw "PCF_VERSION '$current' is not valid. Use format: Major.Minor.Patch (e.g., 1.4.6)"
           }
 
           $major = $parsed.Major
@@ -59,57 +59,68 @@ jobs:
             $patch = 0
           }
 
-          $version = "{0}.{1}.{2}" -f $major, $minor, $patch
+          $newVersion = "{0}.{1}.{2}" -f $major, $minor, $patch
 
+          # Mise à jour de la variable GitHub
           gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/actions/variables/PCF_VERSION" `
-            -f name=PCF_VERSION -f value=$version > $null
+            -f name=PCF_VERSION -f value=$newVersion > $null
 
-          Write-Host "✅ Bumped PCF_VERSION from $current to $version"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
+          Write-Host "Bumped PCF_VERSION: $current → $newVersion"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$newVersion"
 
-      - name: Update ControlManifest.Input.xml
+      - name: Update ControlManifest.Input.xml version
         run: |
           $version = '${{ steps.version.outputs.version }}'
-          $manifestPath = 'AssessmentControl/ControlManifest.Input.xml'
+          $manifestPath = 'ControlManifest.Input.xml'
+
           if (-not (Test-Path $manifestPath)) {
-            throw "Manifest file not found: $manifestPath"
+            Write-Host "Current directory: $PWD"
+            Write-Host "Files in directory:"
+            Get-ChildItem -Name | Sort-Object
+            throw "ControlManifest.Input.xml NOT FOUND at $manifestPath. It must be in the root of AssessmentPCFControl."
           }
 
-          Write-Host "🔧 Updating manifest version to $version"
-          [xml]$manifest = Get-Content -Path $manifestPath -Raw
-          $manifest.manifest.control.version = $version
-          $manifest.Save($manifestPath)
+          Write-Host "Updating $manifestPath → version=$version"
+          [xml]$xml = Get-Content $manifestPath -Raw
+          $old = $xml.manifest.control.version
+          $xml.manifest.control.version = $version
+          $xml.Save($manifestPath)
 
-          Write-Host "✅ ControlManifest.Input.xml updated to version $version"
-          Select-String -Path $manifestPath -Pattern "version=" | Select-Object -First 1
+          Write-Host "ControlManifest.Input.xml updated: $old → $version"
+          Write-Host "##[group]Manifest preview"
+          Get-Content $manifestPath | Select-String 'version=' -Context 0,1
+          Write-Host "##[endgroup]"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Clean previous builds
+      - name: Clean previous build
         run: |
-          if (Test-Path "out") { Remove-Item "out" -Recurse -Force }
-          Write-Host "🧹 Cleaned output folder."
+          if (Test-Path 'out') {
+            Remove-Item -Recurse -Force 'out'
+            Write-Host "Cleaned previous 'out/' folder"
+          }
 
       - name: Build PCF control
         run: npm run build
 
-      - name: Validate built manifest version
+      - name: Validate built ControlManifest.xml
         run: |
-          $expected = '${{ steps.version.outputs.version }}'
-          $manifest = Get-ChildItem -Path "out" -Filter "ControlManifest.xml" -Recurse | Select-Object -First 1
-          if (-not $manifest) {
-            throw "❌ ControlManifest.xml not found in build output."
+          $outManifest = 'out/ControlManifest.xml'
+          if (-not (Test-Path $outManifest)) {
+            throw "Build failed: $outManifest not generated. Check 'npm run build' output."
           }
 
-          $content = Get-Content -Path $manifest.FullName -Raw
-          if ($content -match "version=`"$expected`"") {
-            Write-Host "✅ Built manifest version matches expected $expected"
+          $line = Select-String -Path $outManifest -Pattern 'version="' | Select-Object -First 1
+          if ($line -match 'version="([^"]+)"') {
+            $builtVersion = $matches[1]
+            if ($builtVersion -eq '${{ steps.version.outputs.version }}') {
+              Write-Host "Built manifest version: $builtVersion"
+            } else {
+              throw "VERSION MISMATCH! Expected: ${{ steps.version.outputs.version }}, Got: $builtVersion"
+            }
           } else {
-            Write-Host "❌ Version mismatch in built manifest!"
-            Write-Host "Expected: $expected"
-            Write-Host "Found:    " + ($content | Select-String 'version="' | Select-Object -First 1)
-            throw "ControlManifest.xml version not updated correctly."
+            throw "Could not parse version from $outManifest"
           }
 
       - name: Upload control bundle
@@ -118,6 +129,7 @@ jobs:
           name: assessment-pcf-control
           path: out/
           retention-days: 7
+          if-no-files-found: error
 
   solution-build:
     runs-on: windows-latest
@@ -151,11 +163,18 @@ jobs:
       - name: Update solution version
         run: |
           $version = '${{ needs.pcf-build.outputs.version }}'
-          Write-Host "🔧 Setting solution version to $version"
           $solutionPath = 'src/Other/Solution.xml'
-          [xml]$solutionXml = Get-Content -Path $solutionPath -Raw
-          $solutionXml.ImportExportXml.SolutionManifest.Version = $version
-          $solutionXml.Save($solutionPath)
+
+          if (-not (Test-Path $solutionPath)) {
+            throw "Solution.xml not found at $solutionPath"
+          }
+
+          [xml]$xml = Get-Content $solutionPath -Raw
+          $old = $xml.ImportExportXml.SolutionManifest.Version
+          $xml.ImportExportXml.SolutionManifest.Version = $version
+          $xml.Save($solutionPath)
+
+          Write-Host "Solution.xml version: $old → $version"
 
       - name: Build Power Platform solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
@@ -163,23 +182,49 @@ jobs:
       - name: Rename solution packages
         run: |
           $version = '${{ needs.pcf-build.outputs.version }}'
-          $releaseDir = Join-Path $PWD 'bin/Release'
-          $unmanagedSource = Join-Path $releaseDir 'AssessmentPCF.zip'
-          $managedSource = Join-Path $releaseDir 'AssessmentPCF_managed.zip'
+          $releaseDir = 'bin/Release'
+          $unmanaged = Join-Path $releaseDir 'AssessmentPCF.zip'
+          $managed = Join-Path $releaseDir 'AssessmentPCF_managed.zip'
 
-          if (Test-Path $unmanagedSource) {
-            $target = Join-Path $releaseDir ("AssessmentPCF_v{0}.zip" -f $version)
-            Move-Item -Path $unmanagedSource -Destination $target -Force
-            Write-Host "Renamed unmanaged solution to $target"
+          if (Test-Path $unmanaged) {
+            $target = Join-Path $releaseDir "AssessmentPCF_v$version.zip"
+            Move-Item -Path $unmanaged -Destination $target -Force
+            Write-Host "Renamed: AssessmentPCF.zip → AssessmentPCF_v$version.zip"
           }
 
-          if (Test-Path $managedSource) {
-            $target = Join-Path $releaseDir ("AssessmentPCF_managed_v{0}.zip" -f $version)
-            Move-Item -Path $managedSource -Destination $target -Force
-            Write-Host "Renamed managed solution to $target"
+          if (Test-Path $managed) {
+            $target = Join-Path $releaseDir "AssessmentPCF_managed_v$version.zip"
+            Move-Item -Path $managed -Destination $target -Force
+            Write-Host "Renamed: AssessmentPCF_managed.zip → AssessmentPCF_managed_v$version.zip"
           }
 
-      - name: Publish release
+      - name: Validate solution package structure
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $required = @('solution.xml', 'customizations.xml', '[Content_Types].xml')
+          $packages = Get-ChildItem -Path bin/Release -Filter '*.zip'
+
+          if ($packages.Count -eq 0) {
+            throw "No .zip files found in bin/Release/"
+          }
+
+          foreach ($pkg in $packages) {
+            Write-Host "Validating package: $($pkg.Name)"
+            $zip = [IO.Compression.ZipFile]::OpenRead($pkg.FullName)
+            try {
+              $entries = $zip.Entries.FullName
+              foreach ($file in $required) {
+                if ($entries -notcontains $file) {
+                  throw "MISSING FILE in $($pkg.Name): $file"
+                }
+              }
+            } finally {
+              $zip.Dispose()
+            }
+          }
+          Write-Host "All solution packages are valid."
+
+      - name: Publish GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -188,18 +233,21 @@ jobs:
           $asset = "bin/Release/AssessmentPCF_v$version.zip"
 
           if (-not (Test-Path $asset)) {
-            throw "❌ Release asset not found: $asset"
+            throw "Release asset not found: $asset"
           }
 
-          Write-Host "📦 Creating GitHub release: $tag"
+          Write-Host "Publishing release: $tag"
+          
+          # Supprime si existe
           gh release view $tag > $null 2>&1
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Deleting existing release..."
+            Write-Host "Deleting existing release $tag..."
             gh release delete $tag --yes --cleanup-tag
           }
 
+          # Crée la nouvelle
           gh release create $tag $asset `
             --title "AssessmentPCF v$version" `
-            --notes "Automated build #${{ github.run_number }}"
+            --notes "Automated build #${{ github.run_number }} | PCF v$version"
 
-          Write-Host "✅ Release $tag published successfully."
+          Write-Host "Release $tag published with $asset"

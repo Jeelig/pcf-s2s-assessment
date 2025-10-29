@@ -11,7 +11,8 @@ jobs:
   pcf-build:
     runs-on: windows-latest
     permissions:
-      contents: write   # nécessaire pour le commit du bump
+      actions: write
+      contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
     defaults:
@@ -28,17 +29,6 @@ jobs:
           node-version: 18
           cache: npm
           cache-dependency-path: AssessmentPCFControl/package-lock.json
-
-      - name: Read current version
-        id: read-version
-        run: |
-          $path = ".pcfversion"
-          if (-not (Test-Path $path)) {
-            throw "File .pcfversion not found. Please create it with an initial version number (e.g. 1.4.6)."
-          }
-          $current = Get-Content -Path $path -Raw
-          Write-Host "Current PCF version: $current"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "current=$current"
 
       - name: Bump PCF version
         id: version
@@ -71,12 +61,12 @@ jobs:
 
           $version = "{0}.{1}.{2}" -f $major, $minor, $patch
 
+          # Mise à jour de la variable du dépôt via GitHub API
           gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/actions/variables/PCF_VERSION" `
             -f name=PCF_VERSION -f value=$version > $null
 
-          Write-Host "Bumped PCF_VERSION from $current to $version"
+          Write-Host "✅ Bumped PCF_VERSION from $current to $version"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
-
 
       - name: Update control manifest version
         run: |

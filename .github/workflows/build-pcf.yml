@@ -67,58 +67,34 @@ jobs:
           Write-Host "Bumped PCF_VERSION: $current to $newVersion"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$newVersion"
 
-      - name: Update pcfconfig.json version
+      - name: Update package.json version
         run: |
           $version = '${{ steps.version.outputs.version }}'
-          $configPath = 'pcfconfig.json'
+          $pkgPath = 'package.json'
 
-          if (-not (Test-Path $configPath)) {
-            Write-Host "Current directory: $PWD"
-            Write-Host "Files in root:"
-            Get-ChildItem -Name | Sort-Object
-            throw "pcfconfig.json NOT FOUND in $PWD"
+          if (-not (Test-Path $pkgPath)) {
+            throw "package.json NOT FOUND in $PWD"
           }
 
-          $content = Get-Content $configPath -Raw
+          $content = Get-Content $pkgPath -Raw
           if ($content -match '"version":\s*"([^"]+)"') {
             $old = $matches[1]
             $content = $content -replace '"version":\s*"[^"]+"', "`"version`": `"$version`""
-            Set-Content -Path $configPath -Value $content -Encoding UTF8
-            Write-Host "Updated pcfconfig.json version: $old to $version"
-            Write-Host "##[group]pcfconfig.json snippet"
-            $content | Select-String 'version' -Context 0,2
-            Write-Host "##[endgroup]"
+            Set-Content -Path $pkgPath -Value $content -Encoding UTF8
+            Write-Host "Updated package.json version: $old to $version"
           } else {
-            Write-Host "Current pcfconfig.json content:"
-            Write-Host $content
-            throw "No 'version' field found in pcfconfig.json"
+            throw "No 'version' field in package.json"
           }
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Clean build artifacts and cache
+      - name: Clean build
         run: |
-          if (Test-Path 'out') { Remove-Item -Recurse -Force 'out'; Write-Host "Cleaned 'out/'" }
-          if (Test-Path '.pcfproj') { Remove-Item -Recurse -Force '.pcfproj' }
-          if (Test-Path 'node_modules/.cache') { Remove-Item -Recurse -Force 'node_modules/.cache' }
+          if (Test-Path 'out') { Remove-Item -Recurse -Force 'out'; Write-Host "Cleaned out/" }
 
       - name: Build PCF control
         run: npx pcf-scripts build
-
-      - name: Debug - List out/ structure
-        if: always()
-        run: |
-          Write-Host "=== OUT FOLDER STRUCTURE (from $PWD) ==="
-          if (Test-Path 'out') {
-            Get-ChildItem 'out' -Recurse | ForEach-Object {
-              $depth = ($_.FullName -replace [regex]::Escape($PWD), '' -split '\\').Count - 1
-              $indent = '  ' * $depth
-              Write-Host "$indent$(if ($_.PSIsContainer) {'[+]'} else {' -'}) $($_.Name)"
-            }
-          } else {
-            Write-Host "NO 'out' FOLDER GENERATED"
-          }
 
       - name: Validate built ControlManifest.xml
         run: |
@@ -126,13 +102,8 @@ jobs:
           $manifestPath = 'out/controls/AssessmentControl/ControlManifest.xml'
 
           if (-not (Test-Path $manifestPath)) {
-            Write-Host "Manifest not found at: $manifestPath"
-            Write-Host "Searching for any ControlManifest.xml in 'out/'..."
-            Get-ChildItem -Path out -Recurse -Filter "ControlManifest.xml" -ErrorAction SilentlyContinue
-            throw "ControlManifest.xml not found in expected location: $manifestPath"
+            throw "ControlManifest.xml not found at $manifestPath"
           }
-
-          Write-Host "Found manifest at: $manifestPath"
 
           $content = Get-Content $manifestPath -Raw
           if ($content -match 'version="([^"]+)"') {
@@ -140,15 +111,13 @@ jobs:
             if ($actual -eq $expected) {
               Write-Host "VERSION CORRECT: $actual"
             } else {
-              Write-Host "CONTENT SNIPPET (first 10 lines):"
-              $content -split "`n" | Select-Object -First 10
-              throw "VERSION MISMATCH! Expected: $expected, Got: $actual"
+              throw "MISMATCH! Expected $expected, got $actual"
             }
           } else {
-            throw "No 'version' attribute found in ControlManifest.xml"
+            throw "No version in manifest"
           }
 
-      - name: Upload PCF control artifact
+      - name: Upload PCF artifact
         uses: actions/upload-artifact@v4
         with:
           name: assessment-pcf-control
@@ -174,67 +143,46 @@ jobs:
         with:
           dotnet-version: 6.x
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install PCF dependencies
+      - name: Install PCF deps
         run: npm ci
         working-directory: AssessmentPCFControl
 
       - name: Update solution version
         run: |
           $version = '${{ needs.pcf-build.outputs.version }}'
-          $path = 'src/Other/Solution.xml'
-
-          if (-not (Test-Path $path)) {
-            throw "Solution.xml not found at $path"
-          }
-
-          [xml]$xml = Get-Content $path -Raw
-          $old = $xml.ImportExportXml.SolutionManifest.Version
+          $xmlPath = 'src/Other/Solution.xml'
+          [xml]$xml = Get-Content $xmlPath -Raw
           $xml.ImportExportXml.SolutionManifest.Version = $version
-          $xml.Save($path)
+          $xml.Save($xmlPath)
 
-          Write-Host "Updated Solution.xml version: $old to $version"
-
-      - name: Build Power Platform solution
+      - name: Build solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
 
-      - name: Rename solution packages
+      - name: Rename packages
         run: |
           $v = '${{ needs.pcf-build.outputs.version }}'
-          $dir = 'bin/Release'
-          Get-ChildItem "$dir/*.zip" | ForEach-Object {
+          Get-ChildItem bin/Release/*.zip | ForEach-Object {
             $new = $_.Name -replace '\.zip$', "_v$v.zip"
-            Rename-Item $_.FullName "$dir/$new" -Force
+            Rename-Item $_ "$new" -Force
           }
 
-      - name: Validate solution package structure
+      - name: Validate packages
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $required = @('solution.xml','customizations.xml','[Content_Types].xml')
-          Get-ChildItem -Path bin/Release -Filter '*.zip' | ForEach-Object {
+          $req = @('solution.xml','customizations.xml','[Content_Types].xml')
+          Get-ChildItem bin/Release/*.zip | ForEach-Object {
             $zip = [IO.Compression.ZipFile]::OpenRead($_.FullName)
-            try {
-              $entries = $zip.Entries.FullName
-              foreach ($file in $required) {
-                if ($entries -notcontains $file) {
-                  throw "MISSING in $($_.Name): $file"
-                }
-              }
-            } finally {
-              $zip.Dispose()
-            }
+            $missing = $req | Where-Object { $zip.Entries.FullName -notcontains $_ }
+            if ($missing) { throw "MISSING: $missing" }
+            $zip.Dispose()
           }
 
-      - name: Publish GitHub Release
+      - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $v = '${{ needs.pcf-build.outputs.version }}'
           $tag = "v$v"
           $asset = "bin/Release/AssessmentPCF_v$v.zip"
-
-          if
+          gh release delete $tag --yes --cleanup-tag 2>$null || true
+          gh release create $tag $asset --title "v$v" --notes "Build #${{ github.run_number }}"

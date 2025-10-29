@@ -1,188 +1,29 @@
-name: Build PCF Solution
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-      - develop
-
-jobs:
-  pcf-build:
-    runs-on: windows-latest
-    permissions:
-      actions: write
-      contents: write
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    defaults:
-      run:
-        shell: pwsh
-        working-directory: AssessmentPCFControl
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: npm
-          cache-dependency-path: AssessmentPCFControl/package-lock.json
-
-      - name: Bump PCF version
-        id: version
-        env:
-          CURRENT_VERSION: ${{ vars.PCF_VERSION }}
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          $current = $env:CURRENT_VERSION
-          if ([string]::IsNullOrWhiteSpace($current)) {
-            throw "PCF_VERSION is not set in repository variables."
-          }
-
-          try {
-            [version]$v = $current
-          } catch {
-            throw "Invalid PCF_VERSION: '$current'. Use Major.Minor.Patch"
-          }
-
-          $major = $v.Major
-          $minor = $v.Minor
-          $patch = $v.Build
-
-          if ($patch -lt 100) {
-            $patch++
-          } else {
-            $minor++
-            $patch = 0
-          }
-
-          $newVersion = "$major.$minor.$patch"
-
-          gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/actions/variables/PCF_VERSION" `
-            -f name=PCF_VERSION -f value=$newVersion > $null
-
-          Write-Host "Bumped PCF_VERSION: $current to $newVersion"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$newVersion"
-
-      - name: Update package.json version
-        run: |
-          $version = '${{ steps.version.outputs.version }}'
-          $pkgPath = 'package.json'
-
-          if (-not (Test-Path $pkgPath)) {
-            throw "package.json NOT FOUND in $PWD"
-          }
-
-          $content = Get-Content $pkgPath -Raw
-          if ($content -match '"version":\s*"([^"]+)"') {
-            $old = $matches[1]
-            $content = $content -replace '"version":\s*"[^"]+"', "`"version`": `"$version`""
-            Set-Content -Path $pkgPath -Value $content -Encoding UTF8
-            Write-Host "Updated package.json version: $old to $version"
-          } else {
-            throw "No 'version' field in package.json"
-          }
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Clean build
-        run: |
-          if (Test-Path 'out') { Remove-Item -Recurse -Force 'out'; Write-Host "Cleaned out/" }
-
-      - name: Build PCF control
-        run: npx pcf-scripts build
-
-      - name: Validate built ControlManifest.xml
-        run: |
-          $expected = '${{ steps.version.outputs.version }}'
-          $manifestPath = 'out/controls/AssessmentControl/ControlManifest.xml'
-
-          if (-not (Test-Path $manifestPath)) {
-            throw "ControlManifest.xml not found at $manifestPath"
-          }
-
-          $content = Get-Content $manifestPath -Raw
-          if ($content -match 'version="([^"]+)"') {
-            $actual = $matches[1]
-            if ($actual -eq $expected) {
-              Write-Host "VERSION CORRECT: $actual"
-            } else {
-              throw "MISMATCH! Expected $expected, got $actual"
-            }
-          } else {
-            throw "No version in manifest"
-          }
-
-      - name: Upload PCF artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: assessment-pcf-control
-          path: AssessmentPCFControl/out/
-          retention-days: 7
-          if-no-files-found: error
-
-  solution-build:
-    runs-on: windows-latest
-    needs: pcf-build
-    permissions:
-      contents: write
-      packages: write
-    defaults:
-      run:
-        shell: pwsh
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 6.x
-
-      - name: Install PCF deps
-        run: npm ci
-        working-directory: AssessmentPCFControl
-
-      - name: Update solution version
-        run: |
-          $version = '${{ needs.pcf-build.outputs.version }}'
-          $xmlPath = 'src/Other/Solution.xml'
-          [xml]$xml = Get-Content $xmlPath -Raw
-          $xml.ImportExportXml.SolutionManifest.Version = $version
-          $xml.Save($xmlPath)
-
-      - name: Build solution
-        run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
-
-      - name: Rename packages
-        run: |
-          $v = '${{ needs.pcf-build.outputs.version }}'
-          Get-ChildItem bin/Release/*.zip | ForEach-Object {
-            $new = $_.Name -replace '\.zip$', "_v$v.zip"
-            Rename-Item $_ "$new" -Force
-          }
-
-      - name: Validate packages
-        run: |
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $req = @('solution.xml','customizations.xml','[Content_Types].xml')
-          Get-ChildItem bin/Release/*.zip | ForEach-Object {
-            $zip = [IO.Compression.ZipFile]::OpenRead($_.FullName)
-            $missing = $req | Where-Object { $zip.Entries.FullName -notcontains $_ }
-            if ($missing) { throw "MISSING: $missing" }
-            $zip.Dispose()
-          }
-
-      - name: Publish release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          $v = '${{ needs.pcf-build.outputs.version }}'
-          $tag = "v$v"
-          $asset = "bin/Release/AssessmentPCF_v$v.zip"
-          gh release delete $tag --yes --cleanup-tag 2>$null || true
-          gh release create $tag $asset --title "v$v" --notes "Build #${{ github.run_number }}"
+{
+  "name": "pcf-project",
+  "version": "1.0.0",
+  "description": "Project containing your PowerApps Component Framework (PCF) control.",
+  "scripts": {
+    "build": "pcf-scripts build",
+    "clean": "pcf-scripts clean",
+    "lint": "pcf-scripts lint",
+    "lint:fix": "pcf-scripts lint fix",
+    "rebuild": "pcf-scripts rebuild",
+    "start": "pcf-scripts start",
+    "start:watch": "pcf-scripts start watch",
+    "refreshTypes": "pcf-scripts refreshTypes"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.1",
+    "@microsoft/eslint-plugin-power-apps": "^0.2.51",
+    "@types/node": "^18.19.86",
+    "@types/powerapps-component-framework": "^1.3.16",
+    "eslint-plugin-promise": "^7.1.0",
+    "globals": "^15.15.0",
+    "pcf-scripts": "^1",
+    "pcf-start": "^1",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "8.44.0"
+  }
+}

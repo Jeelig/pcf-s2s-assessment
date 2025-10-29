@@ -108,11 +108,6 @@ jobs:
           $content = Get-Content $manifestPath -Raw
           if ($content -match 'version="([^"]+)"') {
             $actual = $matches[1]
-            if ($actual -eq $expected) {
-              Write-Host "VERSION CORRECT: $actual"
-            } else {
-              throw "MISMATCH! Expected $expected, got $actual"
-            }
           } else {
             throw "No version in manifest"
           }

@@ -191,14 +191,24 @@ jobs:
                   
                   $version = '${{ needs.pcf-build.outputs.version }}'
                   [xml]$xml = Get-Content $item.FullName -Raw
-                  $node = $xml.control
-                  if ($node -and $node.version) {
-                    $oldVersion = $node.version
-                    $node.version = $version
+                  $node = $xml.SelectSingleNode("//control")
+
+                  if ($node -ne $null) {
+                    $attr = $node.Attributes["version"]
+                    if ($attr -ne $null) {
+                      $oldVersion = $attr.Value
+                      $attr.Value = $version
+                      Write-Host "Updated version attribute: $oldVersion → $version"
+                    } else {
+                      $newAttr = $xml.CreateAttribute("version")
+                      $newAttr.Value = $version
+                      $node.Attributes.Append($newAttr) | Out-Null
+                      Write-Host "Added missing version attribute: $version"
+                    }
+
                     $xml.Save($item.FullName)
-                    Write-Host "Updated ControlManifest.Input.xml version: $oldVersion → $version"
                   } else {
-                    throw "No 'version' attribute found in control element."
+                    throw "No <control> node found in $TargetFileName."
                   }
                   
                   Write-Host "=== END CONTENT ==="
@@ -248,14 +258,24 @@ jobs:
                 
                 $version = '${{ needs.pcf-build.outputs.version }}'
                 [xml]$xml = Get-Content $item.FullName -Raw
-                $node = $xml.control
-                if ($node -and $node.version) {
-                  $oldVersion = $node.version
-                  $node.version = $version
+                $node = $xml.SelectSingleNode("//control")
+
+                if ($node -ne $null) {
+                  $attr = $node.Attributes["version"]
+                  if ($attr -ne $null) {
+                    $oldVersion = $attr.Value
+                    $attr.Value = $version
+                    Write-Host "Updated version attribute: $oldVersion → $version"
+                  } else {
+                    $newAttr = $xml.CreateAttribute("version")
+                    $newAttr.Value = $version
+                    $node.Attributes.Append($newAttr) | Out-Null
+                    Write-Host "Added missing version attribute: $version"
+                  }
+
                   $xml.Save($item.FullName)
-                  Write-Host "Updated ControlManifest.Input.xml version: $oldVersion → $version"
                 } else {
-                  throw "No 'version' attribute found in control element."
+                  throw "No <control> node found in $TargetFileName."
                 }
                 
                 Write-Host "=== END CONTENT ==="

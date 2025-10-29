@@ -108,6 +108,11 @@ jobs:
           $content = Get-Content $manifestPath -Raw
           if ($content -match 'version="([^"]+)"') {
             $actual = $matches[1]
+            if ($actual -eq $expected) {
+              Write-Host "VERSION CORRECT: $actual"
+            } else {
+              Write-Host "MISMATCH! Expected $expected, got $actual"
+            }
           } else {
             throw "No version in manifest"
           }
@@ -149,6 +154,30 @@ jobs:
           [xml]$xml = Get-Content $xmlPath -Raw
           $xml.ImportExportXml.SolutionManifest.Version = $version
           $xml.Save($xmlPath)
+
+      - name: Debug - List entire project structure after build
+        if: always()
+        run: |
+          Write-Host "=== FULL PROJECT TREE AFTER BUILD ==="
+          Get-ChildItem -Path . -Recurse -Name | Sort-Object
+          Write-Host "=== END TREE ==="
+
+          Write-Host "=== CONTENTS OF 'out' FOLDER (if exists) ==="
+          if (Test-Path 'out') {
+            Get-ChildItem 'out' -Recurse -Name | Sort-Object
+          } else {
+            Write-Host "NO 'out' FOLDER FOUND"
+          }
+          Write-Host "=== END out CONTENTS ==="
+
+          Write-Host "=== SEARCH FOR ANY manifest.xml or ControlManifest*.xml ==="
+          Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -Name | ForEach-Object {
+            Write-Host "Found: $_"
+          }
+          if (-not (Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -ErrorAction SilentlyContinue)) {
+            Write-Host "NO MANIFEST FILES FOUND ANYWHERE"
+          }
+          Write-Host "=== END SEARCH ==="
 
       - name: Build solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release

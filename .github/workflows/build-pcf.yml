@@ -190,14 +190,15 @@ jobs:
                   Get-Content $item.FullName | Write-Host
                   
                   $version = '${{ needs.pcf-build.outputs.version }}'
-                  $content = Get-Content $item.FullName -Raw
-                  if ($content -match '"version":\s*"([^"]+)"') {
-                    $old = $matches[1]
-                    $content = $content -replace '"version":\s*"[^"]+"', "`"version`": `"$version`""
-                    Set-Content -Path $item.FullName -Value $content -Encoding UTF8
-                    Write-Host "Updated package.json version: $old to $version"
+                  [xml]$xml = Get-Content $item.FullName -Raw
+                  $node = $xml.control
+                  if ($node -and $node.version) {
+                    $oldVersion = $node.version
+                    $node.version = $version
+                    $xml.Save($item.FullName)
+                    Write-Host "Updated ControlManifest.Input.xml version: $oldVersion → $version"
                   } else {
-                    throw "No 'version' field in package.json"
+                    throw "No 'version' attribute found in control element."
                   }
                   
                   Write-Host "=== END CONTENT ==="
@@ -246,14 +247,15 @@ jobs:
                 Get-Content $_.FullName | Write-Host
                 
                 $version = '${{ needs.pcf-build.outputs.version }}'
-                $content = Get-Content $item.FullName -Raw
-                if ($content -match '"version":\s*"([^"]+)"') {
-                  $old = $matches[1]
-                  $content = $content -replace '"version":\s*"[^"]+"', "`"version`": `"$version`""
-                  Set-Content -Path $item.FullName -Value $content -Encoding UTF8
-                  Write-Host "Updated package.json version: $old to $version"
+                [xml]$xml = Get-Content $item.FullName -Raw
+                $node = $xml.control
+                if ($node -and $node.version) {
+                  $oldVersion = $node.version
+                  $node.version = $version
+                  $xml.Save($item.FullName)
+                  Write-Host "Updated ControlManifest.Input.xml version: $oldVersion → $version"
                 } else {
-                  throw "No 'version' field in package.json"
+                  throw "No 'version' attribute found in control element."
                 }
                 
                 Write-Host "=== END CONTENT ==="

@@ -120,39 +120,104 @@ jobs:
           }
 
       - name: Build PCF control
-        run: npm run build -- --verbose  # Added --verbose for more logging
+        run: npm run build
 
-      - name: Debug build output
-        if: always()  # Run even if build fails
+      - name: 🔍 DEBUG - FULL PROJECT STRUCTURE AFTER BUILD
         run: |
+          Write-Host "##[group]=== ROOT PROJECT ==="
+          Get-ChildItem -Name | Sort-Object
+          Write-Host "##[endgroup]"
+          
+          Write-Host "##[group]=== AssessmentControl/ ==="
+          if (Test-Path 'AssessmentControl') {
+            Get-ChildItem 'AssessmentControl' -Recurse -Name | Sort-Object
+          }
+          Write-Host "##[endgroup]"
+          
+          Write-Host "##[group]=== out/ FOLDER (if exists) ==="
           if (Test-Path 'out') {
-            Write-Host "Contents of out/ folder:"
+            Write-Host "out/ exists!"
             Get-ChildItem 'out' -Recurse -Name | Sort-Object
           } else {
-            Write-Host "No out/ folder generated after build"
+            Write-Host "❌ out/ DOES NOT EXIST!"
           }
+          Write-Host "##[endgroup]"
+          
+          Write-Host "##[group]=== POSSIBLE MANIFEST LOCATIONS ==="
+          $possiblePaths = @(
+            'out/ControlManifest.xml',
+            'out/controls/AssessmentControl/manifest.xml',
+            'out/AssessmentControl/ControlManifest.xml',
+            'out/bundle.js',
+            'out/index.js'
+          )
+          foreach ($path in $possiblePaths) {
+            if (Test-Path $path) {
+              Write-Host "✅ FOUND: $path"
+              if ($path -like '*.xml') {
+                $content = Get-Content $path -Raw
+                if ($content -match 'version="([^"]+)"') {
+                  Write-Host "   📝 Version: $($matches[1])"
+                }
+              }
+            } else {
+              Write-Host "❌ MISSING: $path"
+            }
+          }
+          Write-Host "##[endgroup]"
+
+      - name: Upload FULL out/ for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-full-out-folder
+          path: out/
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: Validate built ControlManifest.xml version
         run: |
-          $outManifest = 'out/controls/AssessmentControl/manifest.xml'  # Adjusted path based on standard PCF output structure
-          if (-not (Test-Path $outManifest)) {
-            $outManifest = 'out/ControlManifest.xml'  # Fallback to previous path
-            if (-not (Test-Path $outManifest)) {
-              throw "Build failed: ControlManifest.xml not generated in expected paths."
+          Write-Host "🔍 Searching for ControlManifest.xml in ALL possible locations..."
+          
+          $possibleManifests = @(
+            'out/ControlManifest.xml',
+            'out/controls/rc-s/AssessmentControl/ControlManifest.xml',
+            'out/controls/AssessmentControl/ControlManifest.xml',
+            'out/AssessmentControl/ControlManifest.xml',
+            'out/rc-s/AssessmentControl/ControlManifest.xml'
+          )
+          
+          $foundManifest = $null
+          foreach ($path in $possibleManifests) {
+            if (Test-Path $path) {
+              Write-Host "✅ FOUND MANIFEST: $path"
+              $foundManifest = $path
+              break
             }
           }
-
+          
+          if (-not $foundManifest) {
+            throw "❌ NO ControlManifest.xml found in any expected location. Check DEBUG output above."
+          }
+          
           $expected = '${{ steps.version.outputs.version }}'
-          $content = Get-Content $outManifest -Raw
+          $content = Get-Content $foundManifest -Raw
+          
+          Write-Host "📄 Reading manifest from: $foundManifest"
+          Write-Host "##[group]Full manifest content"
+          Write-Host $content
+          Write-Host "##[endgroup]"
+          
           if ($content -match 'version="([^"]+)"') {
             $actual = $matches[1]
+            Write-Host "🔍 Parsed version: '$actual' (expected: '$expected')"
             if ($actual -eq $expected) {
-              Write-Host "Built manifest version: $actual (matches expected)"
+              Write-Host "✅ VERSION MATCH!"
             } else {
-              throw "VERSION MISMATCH! Expected: $expected, Got: $actual"
+              throw "❌ VERSION MISMATCH! Expected: $expected, Got: $actual"
             }
           } else {
-            throw "Failed to parse version from $outManifest"
+            throw "❌ No version attribute found in manifest"
           }
 
       - name: Upload PCF control artifact
@@ -254,4 +319,7 @@ jobs:
           Write-Host "Publishing release $tag with asset $asset"
           gh release view $tag > $null 2>&1
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "
+            Write-Host "Release $tag exists. Deleting before recreate."
+            gh release delete $tag --yes
+          }
+          gh release create $tag $asset --title "AssessmentPCF v$version" --notes "Automated build ${{ github.run_number }}"

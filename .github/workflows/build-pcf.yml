@@ -67,20 +67,32 @@ jobs:
           Write-Host "Bumped PCF_VERSION: $current to $newVersion"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$newVersion"
 
-      - name: Update ControlManifest.Input.xml
+      - name: Update pcfconfig.json version
         run: |
           $version = '${{ steps.version.outputs.version }}'
-          $manifestPath = 'AssessmentControl/ControlManifest.Input.xml'
+          $configPath = 'pcfconfig.json'
 
-          if (-not (Test-Path $manifestPath)) {
-            throw "ControlManifest.Input.xml NOT FOUND at $manifestPath"
+          if (-not (Test-Path $configPath)) {
+            Write-Host "Current directory: $PWD"
+            Write-Host "Files in root:"
+            Get-ChildItem -Name | Sort-Object
+            throw "pcfconfig.json NOT FOUND in $PWD"
           }
 
-          $content = Get-Content $manifestPath -Raw
-          $content = $content -replace 'version="[^"]+"', "version=`"$version`""
-          Set-Content -Path $manifestPath -Value $content -Encoding UTF8
-
-          Write-Host "Updated manifest version to $version"
+          $content = Get-Content $configPath -Raw
+          if ($content -match '"version":\s*"([^"]+)"') {
+            $old = $matches[1]
+            $content = $content -replace '"version":\s*"[^"]+"', "`"version`": `"$version`""
+            Set-Content -Path $configPath -Value $content -Encoding UTF8
+            Write-Host "Updated pcfconfig.json version: $old to $version"
+            Write-Host "##[group]pcfconfig.json snippet"
+            $content | Select-String 'version' -Context 0,2
+            Write-Host "##[endgroup]"
+          } else {
+            Write-Host "Current pcfconfig.json content:"
+            Write-Host $content
+            throw "No 'version' field found in pcfconfig.json"
+          }
 
       - name: Install dependencies
         run: npm ci
@@ -91,8 +103,8 @@ jobs:
           if (Test-Path '.pcfproj') { Remove-Item -Recurse -Force '.pcfproj' }
           if (Test-Path 'node_modules/.cache') { Remove-Item -Recurse -Force 'node_modules/.cache' }
 
-      - name: Build PCF control (with clean)
-        run: npx pcf-scripts build --clean
+      - name: Build PCF control
+        run: npx pcf-scripts build
 
       - name: Debug - List out/ structure
         if: always()
@@ -105,7 +117,7 @@ jobs:
               Write-Host "$indent$(if ($_.PSIsContainer) {'[+]'} else {' -'}) $($_.Name)"
             }
           } else {
-            Write-Host "NO 'out' FOLDER"
+            Write-Host "NO 'out' FOLDER GENERATED"
           }
 
       - name: Validate built ControlManifest.xml
@@ -114,30 +126,36 @@ jobs:
           $manifestPath = 'out/controls/AssessmentControl/ControlManifest.xml'
 
           if (-not (Test-Path $manifestPath)) {
-            throw "ControlManifest.xml not found at $manifestPath"
+            Write-Host "Manifest not found at: $manifestPath"
+            Write-Host "Searching for any ControlManifest.xml in 'out/'..."
+            Get-ChildItem -Path out -Recurse -Filter "ControlManifest.xml" -ErrorAction SilentlyContinue
+            throw "ControlManifest.xml not found in expected location: $manifestPath"
           }
+
+          Write-Host "Found manifest at: $manifestPath"
 
           $content = Get-Content $manifestPath -Raw
           if ($content -match 'version="([^"]+)"') {
             $actual = $matches[1]
             if ($actual -eq $expected) {
-              Write-Host "VERSION OK: $actual"
+              Write-Host "VERSION CORRECT: $actual"
             } else {
+              Write-Host "CONTENT SNIPPET (first 10 lines):"
+              $content -split "`n" | Select-Object -First 10
               throw "VERSION MISMATCH! Expected: $expected, Got: $actual"
             }
           } else {
-            throw "No version in manifest"
+            throw "No 'version' attribute found in ControlManifest.xml"
           }
 
       - name: Upload PCF control artifact
         uses: actions/upload-artifact@v4
         with:
           name: assessment-pcf-control
-          path: AssessmentPCFControl/out/   # CHEMIN ABSOLU DEPUIS LA RACINE DU REPO
+          path: AssessmentPCFControl/out/
           retention-days: 7
           if-no-files-found: error
 
-  # === SOLUTION BUILD (inchangé) ===
   solution-build:
     runs-on: windows-latest
     needs: pcf-build
@@ -169,39 +187,54 @@ jobs:
         run: |
           $version = '${{ needs.pcf-build.outputs.version }}'
           $path = 'src/Other/Solution.xml'
+
+          if (-not (Test-Path $path)) {
+            throw "Solution.xml not found at $path"
+          }
+
           [xml]$xml = Get-Content $path -Raw
+          $old = $xml.ImportExportXml.SolutionManifest.Version
           $xml.ImportExportXml.SolutionManifest.Version = $version
           $xml.Save($path)
 
-      - name: Build solution
+          Write-Host "Updated Solution.xml version: $old to $version"
+
+      - name: Build Power Platform solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
 
-      - name: Rename packages
+      - name: Rename solution packages
         run: |
           $v = '${{ needs.pcf-build.outputs.version }}'
           $dir = 'bin/Release'
           Get-ChildItem "$dir/*.zip" | ForEach-Object {
             $new = $_.Name -replace '\.zip$', "_v$v.zip"
-            Rename-Item $_.FullName "$dir/$new"
+            Rename-Item $_.FullName "$dir/$new" -Force
           }
 
-      - name: Validate packages
+      - name: Validate solution package structure
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $req = @('solution.xml','customizations.xml','[Content_Types].xml')
-          Get-ChildItem bin/Release -Filter *.zip | ForEach-Object {
+          $required = @('solution.xml','customizations.xml','[Content_Types].xml')
+          Get-ChildItem -Path bin/Release -Filter '*.zip' | ForEach-Object {
             $zip = [IO.Compression.ZipFile]::OpenRead($_.FullName)
-            $missing = $req | Where-Object { $zip.Entries.FullName -notcontains $_ }
-            if ($missing) { throw "MISSING in $($_.Name): $missing" }
-            $zip.Dispose()
+            try {
+              $entries = $zip.Entries.FullName
+              foreach ($file in $required) {
+                if ($entries -notcontains $file) {
+                  throw "MISSING in $($_.Name): $file"
+                }
+              }
+            } finally {
+              $zip.Dispose()
+            }
           }
 
-      - name: Publish release
+      - name: Publish GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $v = '${{ needs.pcf-build.outputs.version }}'
           $tag = "v$v"
           $asset = "bin/Release/AssessmentPCF_v$v.zip"
-          gh release delete $tag --yes --cleanup-tag 2>$null || true
-          gh release create $tag $asset --title "v$v" --notes "Build #${{ github.run_number }}"
+
+          if

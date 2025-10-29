@@ -125,6 +125,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+
   solution-build:
     runs-on: windows-latest
     needs: pcf-build
@@ -187,6 +188,18 @@ jobs:
                   Write-Host ">>> Found $TargetFileName at $relPath — stopping tree traversal."
                   Write-Host "=== CONTENT OF $TargetFileName ==="
                   Get-Content $item.FullName | Write-Host
+                  
+                  $version = '${{ needs.pcf-build.outputs.version }}'
+                  $content = Get-Content $item.FullName -Raw
+                  if ($content -match '"version":\s*"([^"]+)"') {
+                    $old = $matches[1]
+                    $content = $content -replace '"version":\s*"[^"]+"', "`"version`": `"$version`""
+                    Set-Content -Path $item.FullName -Value $content -Encoding UTF8
+                    Write-Host "Updated package.json version: $old to $version"
+                  } else {
+                    throw "No 'version' field in package.json"
+                  }
+                  
                   Write-Host "=== END CONTENT ==="
                   $found = $true
                 }
@@ -231,6 +244,18 @@ jobs:
                 Write-Host ">>> FOUND EXACT FILE: $($_.FullName) — STOPPING SEARCH NOW."
                 Write-Host "=== CONTENT OF ControlManifest.Input.xml ==="
                 Get-Content $_.FullName | Write-Host
+                
+                $version = '${{ needs.pcf-build.outputs.version }}'
+                $content = Get-Content $item.FullName -Raw
+                if ($content -match '"version":\s*"([^"]+)"') {
+                  $old = $matches[1]
+                  $content = $content -replace '"version":\s*"[^"]+"', "`"version`": `"$version`""
+                  Set-Content -Path $item.FullName -Value $content -Encoding UTF8
+                  Write-Host "Updated package.json version: $old to $version"
+                } else {
+                  throw "No 'version' field in package.json"
+                }
+                
                 Write-Host "=== END CONTENT ==="
                 $foundExact = $true
                 return  # Arrête la pipeline

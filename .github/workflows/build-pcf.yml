@@ -77,33 +77,19 @@ jobs:
           }
 
           $content = Get-Content $manifestPath -Raw
-          $oldMatch = [regex]::Match($content, 'version="([^"]+)"')
-          if (-not $oldMatch.Success) { throw "No version found in manifest" }
-          $oldVersion = $oldMatch.Groups[1].Value
-
           $content = $content -replace 'version="[^"]+"', "version=`"$version`""
           Set-Content -Path $manifestPath -Value $content -Encoding UTF8
 
-          Write-Host "Updated manifest version: $oldVersion to $version"
+          Write-Host "Updated manifest version to $version"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Clean build artifacts and cache
         run: |
-          # Nettoyer le dossier out
-          if (Test-Path 'out') {
-            Remove-Item -Recurse -Force 'out'
-            Write-Host "Cleaned 'out/' folder"
-          }
-
-          # Nettoyer le cache pcf-scripts
-          if (Test-Path '.pcfproj') {
-            Remove-Item -Recurse -Force '.pcfproj'
-          }
-          if (Test-Path 'node_modules/.cache') {
-            Remove-Item -Recurse -Force 'node_modules/.cache'
-          }
+          if (Test-Path 'out') { Remove-Item -Recurse -Force 'out'; Write-Host "Cleaned 'out/'" }
+          if (Test-Path '.pcfproj') { Remove-Item -Recurse -Force '.pcfproj' }
+          if (Test-Path 'node_modules/.cache') { Remove-Item -Recurse -Force 'node_modules/.cache' }
 
       - name: Build PCF control (with clean)
         run: npx pcf-scripts build --clean
@@ -111,16 +97,12 @@ jobs:
       - name: Debug - List out/ structure
         if: always()
         run: |
-          Write-Host "=== OUT FOLDER STRUCTURE ==="
+          Write-Host "=== OUT FOLDER STRUCTURE (from $PWD) ==="
           if (Test-Path 'out') {
             Get-ChildItem 'out' -Recurse | ForEach-Object {
               $depth = ($_.FullName -replace [regex]::Escape($PWD), '' -split '\\').Count - 1
               $indent = '  ' * $depth
-              if ($_.PSIsContainer) {
-                Write-Host "$indent[+] $($_.Name)"
-              } else {
-                Write-Host "$indent  - $($_.Name)"
-              }
+              Write-Host "$indent$(if ($_.PSIsContainer) {'[+]'} else {' -'}) $($_.Name)"
             }
           } else {
             Write-Host "NO 'out' FOLDER"
@@ -132,13 +114,8 @@ jobs:
           $manifestPath = 'out/controls/AssessmentControl/ControlManifest.xml'
 
           if (-not (Test-Path $manifestPath)) {
-            Write-Host "Manifest not found at expected path: $manifestPath"
-            Write-Host "Looking for any ControlManifest.xml..."
-            Get-ChildItem -Path out -Recurse -Filter "ControlManifest.xml" -ErrorAction SilentlyContinue
-            throw "ControlManifest.xml not found in out/controls/AssessmentControl/"
+            throw "ControlManifest.xml not found at $manifestPath"
           }
-
-          Write-Host "Found manifest at: $manifestPath"
 
           $content = Get-Content $manifestPath -Raw
           if ($content -match 'version="([^"]+)"') {
@@ -146,21 +123,21 @@ jobs:
             if ($actual -eq $expected) {
               Write-Host "VERSION OK: $actual"
             } else {
-              Write-Host "CONTENT SNIPPET (first 10 lines):"
-              $content -split "`n" | Select-Object -First 10
+              throw "VERSION MISMATCH! Expected: $expected, Got: $actual"
             }
           } else {
-            throw "No version attribute found in manifest"
+            throw "No version in manifest"
           }
 
       - name: Upload PCF control artifact
         uses: actions/upload-artifact@v4
         with:
           name: assessment-pcf-control
-          path: out/
+          path: AssessmentPCFControl/out/   # CHEMIN ABSOLU DEPUIS LA RACINE DU REPO
           retention-days: 7
           if-no-files-found: error
 
+  # === SOLUTION BUILD (inchangé) ===
   solution-build:
     runs-on: windows-latest
     needs: pcf-build

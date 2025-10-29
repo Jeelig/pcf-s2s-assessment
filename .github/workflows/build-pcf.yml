@@ -11,8 +11,7 @@ jobs:
   pcf-build:
     runs-on: windows-latest
     permissions:
-      actions: write
-      contents: read
+      contents: write   # nécessaire pour le commit du bump
     outputs:
       version: ${{ steps.version.outputs.version }}
     defaults:
@@ -30,19 +29,21 @@ jobs:
           cache: npm
           cache-dependency-path: AssessmentPCFControl/package-lock.json
 
+      - name: Read current version
+        id: read-version
+        run: |
+          $path = ".pcfversion"
+          if (-not (Test-Path $path)) {
+            throw "File .pcfversion not found. Please create it with an initial version number (e.g. 1.4.6)."
+          }
+          $current = Get-Content -Path $path -Raw
+          Write-Host "Current PCF version: $current"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "current=$current"
+
       - name: Bump PCF version
         id: version
-        env:
-          CURRENT_VERSION: ${{ vars.PCF_VERSION }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          $current = $env:CURRENT_VERSION
-          if ([string]::IsNullOrWhiteSpace($current)) {
-            throw "Repository variable PCF_VERSION is not defined."
-          }
-
+          $current = '${{ steps.read-version.outputs.current }}'
           try {
             [version]$parsed = $current
           } catch {
@@ -62,9 +63,17 @@ jobs:
 
           $version = "{0}.{1}.{2}" -f $major, $minor, $patch
 
-          gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/actions/variables/PCF_VERSION" -f name=PCF_VERSION -f value=$version > $null
-
+          # Write the new version into .pcfversion
+          Set-Content -Path ".pcfversion" -Value $version
           Write-Host "Bumped PCF_VERSION from $current to $version"
+
+          # Commit the version bump
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .pcfversion
+          git commit -m "Bump PCF version from $current to $version"
+          git push
+
           Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
 
       - name: Update control manifest version
@@ -91,8 +100,8 @@ jobs:
     runs-on: windows-latest
     needs: pcf-build
     permissions:
-      packages: write
       contents: write
+      packages: write
     defaults:
       run:
         shell: pwsh

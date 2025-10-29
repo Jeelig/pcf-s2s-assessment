@@ -155,43 +155,84 @@ jobs:
           $xml.ImportExportXml.SolutionManifest.Version = $version
           $xml.Save($xmlPath)
 
-      - name: Debug - Search and stop on ControlManifest.Input.xml
+      - name: Debug - List and search with early stop on ControlManifest.Input.xml
         if: always()
         run: |
-          Write-Host "=== FULL PROJECT TREE AFTER BUILD ==="
-          Get-ChildItem -Path . -Recurse -Name | Sort-Object
+          function List-DirectoryUntilFound {
+            param (
+              [string]$CurrentPath = ".",
+              [string]$TargetFileName = "ControlManifest.Input.xml",
+              [string]$BasePath = (Resolve-Path ".").Path
+            )
+
+            $found = $false
+            $items = Get-ChildItem -Path $CurrentPath -ErrorAction SilentlyContinue | Sort-Object Name  # Tri local par dossier (optionnel)
+
+            foreach ($item in $items) {
+              if ($found) { break }  # Arrête les items suivants dans ce dossier
+
+              $relPath = $item.FullName.Replace($BasePath, "").TrimStart('\').TrimStart('/').Replace('\', '/')
+
+              if ($item.PSIsContainer) {
+                Write-Host "$relPath/"  # Affiche le dossier
+
+                $subFound = List-DirectoryUntilFound -CurrentPath $item.FullName -TargetFileName $TargetFileName -BasePath $BasePath
+                if ($subFound) {
+                  $found = $true
+                }
+              } else {
+                Write-Host $relPath  # Affiche le fichier
+
+                if ($item.Name -eq $TargetFileName) {
+                  Write-Host ">>> Found $TargetFileName at $relPath — stopping tree traversal."
+                  $found = $true
+                }
+              }
+            }
+
+            return $found
+          }
+
+          Write-Host "=== FULL PROJECT TREE AFTER BUILD (early stop on ControlManifest.Input.xml) ==="
+          $treeStopped = List-DirectoryUntilFound
+          if ($treeStopped) {
+            Write-Host "Tree listing stopped early after finding the target file."
+          } else {
+            Write-Host "Target file not found in tree."
+          }
           Write-Host "=== END TREE ==="
 
-          Write-Host "=== CONTENTS OF 'out' FOLDER (if exists) ==="
+          Write-Host "=== CONTENTS OF 'out' FOLDER (if exists, with early stop) ==="
           if (Test-Path 'out') {
-            Get-ChildItem 'out' -Recurse -Name | Sort-Object
+            $outStopped = List-DirectoryUntilFound -CurrentPath 'out'
+            if ($outStopped) {
+              Write-Host "out listing stopped early after finding the target file."
+            } else {
+              Write-Host "Target file not found in out."
+            }
           } else {
             Write-Host "NO 'out' FOLDER FOUND"
           }
           Write-Host "=== END out CONTENTS ==="
 
-          Write-Host "=== SEARCH FOR ControlManifest.Input.xml (EARLY STOP) ==="
+          Write-Host "=== SEARCH FOR *manifest*.xml (early stop on ControlManifest.Input.xml) ==="
           $foundExact = $false
-          $stoppedEarly = $false
 
           Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -ErrorAction SilentlyContinue |
             ForEach-Object {
-              if ($foundExact) { return }  # Sécurité : ne traite pas les suivants
+              if ($foundExact) { return }  # Skip si déjà trouvé
 
               Write-Host "Found manifest: $($_.FullName)"
 
               if ($_.Name -eq "ControlManifest.Input.xml") {
                 Write-Host ">>> FOUND EXACT FILE: $($_.FullName) — STOPPING SEARCH NOW."
                 $foundExact = $true
-                $stoppedEarly = $true
-                return  # Sort de ForEach-Object → arrête la pipeline
+                return  # Arrête la pipeline
               }
             }
 
           if (-not $foundExact) {
             Write-Host "ControlManifest.Input.xml NOT FOUND"
-          } elseif ($stoppedEarly) {
-            Write-Host "Search stopped early after finding the target file."
           }
 
           Write-Host "=== END SEARCH ==="

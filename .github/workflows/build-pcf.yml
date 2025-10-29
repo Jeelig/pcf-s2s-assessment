@@ -191,24 +191,14 @@ jobs:
                   
                   $version = '${{ needs.pcf-build.outputs.version }}'
                   [xml]$xml = Get-Content $item.FullName -Raw
-                  $node = $xml.SelectSingleNode("//control")
-
-                  if ($node -ne $null) {
-                    $attr = $node.Attributes["version"]
-                    if ($attr -ne $null) {
-                      $oldVersion = $attr.Value
-                      $attr.Value = $version
-                      Write-Host "Updated version attribute: $oldVersion → $version"
-                    } else {
-                      $newAttr = $xml.CreateAttribute("version")
-                      $newAttr.Value = $version
-                      $node.Attributes.Append($newAttr) | Out-Null
-                      Write-Host "Added missing version attribute: $version"
-                    }
-
+                  $control = $xml.manifest.control
+                  if ($control -and $control.version) {
+                    $old = $control.version
+                    $control.version = $version
                     $xml.Save($item.FullName)
+                    Write-Host "Updated manifest version: $old to $version"
                   } else {
-                    throw "No <control> node found in $TargetFileName."
+                    throw "No <control> with 'version' attribute in manifest XML"
                   }
                   
                   Write-Host "=== END CONTENT ==="
@@ -257,25 +247,15 @@ jobs:
                 Get-Content $_.FullName | Write-Host
                 
                 $version = '${{ needs.pcf-build.outputs.version }}'
-                [xml]$xml = Get-Content $item.FullName -Raw
-                $node = $xml.SelectSingleNode("//control")
-
-                if ($node -ne $null) {
-                  $attr = $node.Attributes["version"]
-                  if ($attr -ne $null) {
-                    $oldVersion = $attr.Value
-                    $attr.Value = $version
-                    Write-Host "Updated version attribute: $oldVersion → $version"
-                  } else {
-                    $newAttr = $xml.CreateAttribute("version")
-                    $newAttr.Value = $version
-                    $node.Attributes.Append($newAttr) | Out-Null
-                    Write-Host "Added missing version attribute: $version"
-                  }
-
-                  $xml.Save($item.FullName)
+                [xml]$xml = Get-Content $_.FullName -Raw
+                $control = $xml.manifest.control
+                if ($control -and $control.version) {
+                  $old = $control.version
+                  $control.version = $version
+                  $xml.Save($_.FullName)
+                  Write-Host "Updated manifest version: $old to $version"
                 } else {
-                  throw "No <control> node found in $TargetFileName."
+                  throw "No <control> with 'version' attribute in manifest XML"
                 }
                 
                 Write-Host "=== END CONTENT ==="

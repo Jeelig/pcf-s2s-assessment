@@ -171,13 +171,23 @@ jobs:
           Write-Host "=== END out CONTENTS ==="
 
           Write-Host "=== SEARCH FOR ANY manifest.xml or ControlManifest*.xml ==="
-          Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -Name | ForEach-Object {
-            Write-Host "Found: $_"
+          $foundManifest = $false
+
+          foreach ($file in Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -ErrorAction SilentlyContinue) {
+            Write-Host "Found: $($file.FullName)"
+            $foundManifest = $true
+            if ($file.Name -eq "ControlManifest.Input.xml") {
+              Write-Host ">>> Found ControlManifest.Input.xml — stopping search."
+              break
+            }
           }
-          if (-not (Get-ChildItem -Path . -Recurse -Filter "*manifest*.xml" -ErrorAction SilentlyContinue)) {
+
+          if (-not $foundManifest) {
             Write-Host "NO MANIFEST FILES FOUND ANYWHERE"
           }
+
           Write-Host "=== END SEARCH ==="
+
 
       - name: Build solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release

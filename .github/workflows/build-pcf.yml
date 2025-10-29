@@ -96,6 +96,9 @@ jobs:
       - name: Build PCF control
         run: npx pcf-scripts build
 
+      - name: Build PCF control
+        run: npm run build
+
       - name: Validate built ControlManifest.xml
         run: |
           $expected = '${{ steps.version.outputs.version }}'
@@ -269,8 +272,6 @@ jobs:
           }
 
           Write-Host "=== END SEARCH ==="
-
-
 
       - name: Build solution
         run: dotnet build AssessmentPCF.cdsproj /p:Configuration=Release

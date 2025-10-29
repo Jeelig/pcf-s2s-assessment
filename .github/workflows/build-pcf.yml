@@ -61,20 +61,25 @@ jobs:
 
           $version = "{0}.{1}.{2}" -f $major, $minor, $patch
 
-          # Mise à jour de la variable du dépôt via GitHub API
+          # Met à jour la variable GitHub
           gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/actions/variables/PCF_VERSION" `
             -f name=PCF_VERSION -f value=$version > $null
 
           Write-Host "✅ Bumped PCF_VERSION from $current to $version"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
 
-      - name: Update control manifest version
+      - name: Update ControlManifest.Input.xml version
         run: |
           $version = '${{ steps.version.outputs.version }}'
           $manifestPath = 'AssessmentControl/ControlManifest.Input.xml'
+          Write-Host "Updating manifest version to $version"
           [xml]$manifest = Get-Content -Path $manifestPath
           $manifest.manifest.control.version = $version
           $manifest.Save($manifestPath)
+
+          Write-Host "✅ ControlManifest.Input.xml updated successfully"
+          # Affiche un extrait de validation
+          Select-String -Path $manifestPath -Pattern "version=" | Select-Object -First 1
 
       - name: Install dependencies
         run: npm ci

@@ -72,3 +72,77 @@ Unmanaged Pack complete.
 2025-10-27 21:04:10.684 - Info	
 Managed Pack complete.
 
+2025-10-30 00:40:24.924 - Info	
+Packing C:\ibm-repos\RC\S2S\pcf-s2s-assessment\obj\Release\Metadata to bin\Release\AssessmentPCF.zip and bin\Release\AssessmentPCF_managed.zip
+
+2025-10-30 00:40:25.085 - Info	Processing Component: Entities
+2025-10-30 00:40:25.106 - Info	Processing Component: Roles
+2025-10-30 00:40:25.118 - Info	Processing Component: Workflows
+2025-10-30 00:40:25.120 - Info	Processing Component: FieldSecurityProfiles
+2025-10-30 00:40:25.121 - Info	Processing Component: Templates
+2025-10-30 00:40:25.126 - Info	Processing Component: EntityMaps
+2025-10-30 00:40:25.127 - Info	Processing Component: EntityRelationships
+2025-10-30 00:40:25.237 - Info	Processing Component: OrganizationSettings
+2025-10-30 00:40:25.240 - Info	Processing Component: optionsets
+2025-10-30 00:40:25.242 - Info	Processing Component: CustomControls
+2025-10-30 00:40:25.303 - Info	 - RC.S2S.AssessmentControl
+2025-10-30 00:40:25.572 - Info	Processing Component: SolutionPluginAssemblies
+2025-10-30 00:40:25.576 - Info	Processing Component: EntityDataProviders
+2025-10-30 00:40:25.614 - Info	Processing Sharded Component Files
+2025-10-30 00:40:25.844 - Info	
+Unmanaged Pack complete.
+
+2025-10-30 00:40:25.848 - Info	Processing Component: Entities
+2025-10-30 00:40:25.850 - Info	Processing Component: Roles
+2025-10-30 00:40:25.851 - Info	Processing Component: Workflows
+2025-10-30 00:40:25.858 - Info	Processing Component: FieldSecurityProfiles
+2025-10-30 00:40:25.864 - Info	Processing Component: Templates
+2025-10-30 00:40:25.865 - Info	Processing Component: EntityMaps
+2025-10-30 00:40:25.867 - Info	Processing Component: EntityRelationships
+2025-10-30 00:40:25.877 - Info	Processing Component: OrganizationSettings
+2025-10-30 00:40:25.884 - Info	Processing Component: optionsets
+2025-10-30 00:40:25.892 - Info	Processing Component: CustomControls
+2025-10-30 00:40:25.916 - Info	 - RC.S2S.AssessmentControl
+2025-10-30 00:40:25.929 - Info	Processing Component: SolutionPluginAssemblies
+2025-10-30 00:40:25.937 - Info	Processing Component: EntityDataProviders
+2025-10-30 00:40:25.941 - Info	Processing Sharded Component Files
+2025-10-30 00:40:25.960 - Info	
+Managed Pack complete.
+
+2025-10-30 00:44:20.425 - Info	
+Packing C:\ibm-repos\RC\S2S\pcf-s2s-assessment\obj\Release\Metadata to bin\Release\AssessmentPCF.zip and bin\Release\AssessmentPCF_managed.zip
+
+2025-10-30 00:44:20.561 - Info	Processing Component: Entities
+2025-10-30 00:44:20.592 - Info	Processing Component: Roles
+2025-10-30 00:44:20.618 - Info	Processing Component: Workflows
+2025-10-30 00:44:20.629 - Info	Processing Component: FieldSecurityProfiles
+2025-10-30 00:44:20.664 - Info	Processing Component: Templates
+2025-10-30 00:44:20.681 - Info	Processing Component: EntityMaps
+2025-10-30 00:44:20.729 - Info	Processing Component: EntityRelationships
+2025-10-30 00:44:20.834 - Info	Processing Component: OrganizationSettings
+2025-10-30 00:44:20.877 - Info	Processing Component: optionsets
+2025-10-30 00:44:20.909 - Info	Processing Component: CustomControls
+2025-10-30 00:44:21.054 - Info	 - RC.S2S.AssessmentControl
+2025-10-30 00:44:21.351 - Info	Processing Component: SolutionPluginAssemblies
+2025-10-30 00:44:21.384 - Info	Processing Component: EntityDataProviders
+2025-10-30 00:44:21.446 - Info	Processing Sharded Component Files
+2025-10-30 00:44:21.727 - Info	
+Unmanaged Pack complete.
+
+2025-10-30 00:44:21.764 - Info	Processing Component: Entities
+2025-10-30 00:44:21.799 - Info	Processing Component: Roles
+2025-10-30 00:44:21.825 - Info	Processing Component: Workflows
+2025-10-30 00:44:21.833 - Info	Processing Component: FieldSecurityProfiles
+2025-10-30 00:44:21.903 - Info	Processing Component: Templates
+2025-10-30 00:44:21.961 - Info	Processing Component: EntityMaps
+2025-10-30 00:44:22.016 - Info	Processing Component: EntityRelationships
+2025-10-30 00:44:22.096 - Info	Processing Component: OrganizationSettings
+2025-10-30 00:44:22.139 - Info	Processing Component: optionsets
+2025-10-30 00:44:22.207 - Info	Processing Component: CustomControls
+2025-10-30 00:44:22.253 - Info	 - RC.S2S.AssessmentControl
+2025-10-30 00:44:22.263 - Info	Processing Component: SolutionPluginAssemblies
+2025-10-30 00:44:22.271 - Info	Processing Component: EntityDataProviders
+2025-10-30 00:44:22.274 - Info	Processing Sharded Component Files
+2025-10-30 00:44:22.359 - Info	
+Managed Pack complete.
+

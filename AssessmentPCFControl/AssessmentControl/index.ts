@@ -143,7 +143,7 @@ export class AssessmentControl implements ComponentFramework.StandardControl<IIn
         this.container.innerHTML = `
             <div class="connection-status" id="connectionStatus"></div>
             <div class="alertMessage" id="alertMessage"></div>
-            <div class="savedMessage" id="savedMessage">Changes saved locally ! test </div>
+            <div class="savedMessage" id="savedMessage">Changes saved locally ! testm </div>
             <div class="s2s-container">
                 <div style="text-align:right; margin-bottom: 20px;">
                     ${this.pendingChanges.length > 0 ? 

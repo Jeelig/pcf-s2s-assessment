@@ -1,0 +1,49 @@
+name: Bump PCF Version
+
+on:
+  workflow_dispatch:
+  #push:
+  #  branches:
+  #    - main
+  #    - develop
+
+jobs:
+  bump-pcf:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Get current version
+        id: get_version
+        run: |
+          current="${{ vars.PCF_VERSION }}"
+          echo "current version from vars=$current"
+
+          major=$(echo $current | cut -d. -f1)
+          minor=$(echo $current | cut -d. -f2)
+          build=$(echo $current | cut -d. -f3)
+
+          new_build=$((build+1))
+          new="$major.$minor.$new_build"
+
+          echo "new=$new" >> $GITHUB_OUTPUT
+
+      - name: Update ControlManifest.Input.xml
+        run: |
+          sed -i "s/version=\"[0-9.]*\"/version=\"${{ steps.get_version.outputs.new }}\"/g" AssessmentPCFControl/AssessmentControl/ControlManifest.Input.xml
+
+      - name: Update Solution.xml
+        run: |
+          sed -i "s#<Version>[0-9.]*</Version>#<Version>${{ steps.get_version.outputs.new }}</Version>#g" src/Other/Solution.xml
+
+      - name: Commit + push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Bump PCF version to ${{ steps.get_version.outputs.new }}"
+          git push origin HEAD

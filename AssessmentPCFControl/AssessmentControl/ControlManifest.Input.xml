@@ -1,26 +1,17 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="RC.S2S" constructor="AssessmentControl" version="1.4.39" display-name-key="AssessmentControl" description-key="AssessmentControl_Desc_Key" control-type="standard">
-    
+  <control namespace="RC.S2S" constructor="AssessmentControl" version="1.4.39" display-name-key="AssessmentControl" description-key="AssessmentControl_Desc_Key" control-type="standard">  
     <!-- Input Properties -->
-    <property name="auditId" display-name-key="Audit_ID_Property_Display_Key" description-key="Audit_ID_Property_Desc_Key" of-type="SingleLine.Text" usage="bound" required="true" />
-    
+    <property name="auditId" display-name-key="Audit_ID_Property_Display_Key" description-key="Audit_ID_Property_Desc_Key" of-type="SingleLine.Text" usage="bound" required="true" />    
     <!-- Optional: Pass full audit data as JSON for offline scenarios -->
     <property name="auditData" display-name-key="Audit_Data_Property_Display_Key" description-key="Audit_Data_Property_Desc_Key" of-type="Multiple" usage="input" required="false" />
-    
     <!-- Output properties -->
     <property name="completionPercentage" display-name-key="Completion_Percentage_Display_Key" description-key="Completion_Percentage_Desc_Key" of-type="Whole.None" usage="output" />
-    
-    <property name="totalScore" display-name-key="Total_Score_Display_Key" description-key="Total_Score_Desc_Key" of-type="Decimal" usage="output" />
-    
+    <property name="totalScore" display-name-key="Total_Score_Display_Key" description-key="Total_Score_Desc_Key" of-type="Decimal" usage="output" />    
     <property name="pendingChanges" display-name-key="Pending_Changes_Display_Key" description-key="Pending_Changes_Desc_Key" of-type="Whole.None" usage="output" />
-
     <property name="changedQuestionsJSON" display-name-key="Changed_Questions_JSON_Display_Key" description-key="Changed_Questions_JSON_Desc_Key" of-type="Multiple" usage="output" />
-
     <property name="changedSubquestionsJSON" display-name-key="Changed_Subquestions_JSON_Display_Key" description-key="Changed_Subquestions_JSON_Desc_Key" of-type="Multiple" usage="output" />
-    
     <property name="auditScoresJSON" display-name-key="Audit_Scores_JSON_Display_Key" description-key="Audit_Scores_JSON_Desc_Key" of-type="Multiple" usage="output" />  
-    
     <!-- Resources -->
     <resources>
       <code path="index.ts" order="1"/>

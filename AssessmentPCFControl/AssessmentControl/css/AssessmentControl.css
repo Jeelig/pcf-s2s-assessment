@@ -1,6 +1,11 @@
 /* Material Icons Font - Import at top */
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
+.newClass {
+    font-weight: bold;
+    color: #1976D2;
+}
+
 .alertMessage {
     width: 100%;
     padding: 15px;

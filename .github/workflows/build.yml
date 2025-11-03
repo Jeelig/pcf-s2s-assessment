@@ -2,10 +2,6 @@ name: Bump PCF Version
 
 on:
   workflow_dispatch:
-  #push:
-  #  branches:
-  #    - main
-  #    - develop
 
 jobs:
   bump-pcf:
@@ -27,14 +23,15 @@ jobs:
         with:
           dotnet-version: '6.0.x'
 
-      - name: Install Power Platform CLI
+      - name: Install Power Platform CLI (via script)
         shell: pwsh
-        run: dotnet tool install --global Microsoft.PowerApps.CLI
+        run: |
+          iwr -useb https://aka.ms/PowerAppsCLIInstall | iex
 
       - name: Add pac to PATH
         shell: pwsh
         run: |
-          echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "$env:USERPROFILE\AppData\Local\Microsoft\PowerAppsCLI" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Bump version
         id: bump
@@ -42,25 +39,27 @@ jobs:
         run: |
           current="${{ vars.PCF_VERSION }}"
           echo "current version=$current"
-
           major=$(echo $current | cut -d. -f1)
           minor=$(echo $current | cut -d. -f2)
           build=$(echo $current | cut -d. -f3)
           new_build=$((build+1))
           new="$major.$minor.$new_build"
+          echo "new=$new"
           echo "new=$new" >> $GITHUB_OUTPUT
 
       - name: Update ControlManifest.Input.xml
+        shell: pwsh
         run: |
           (Get-Content AssessmentPCFControl/AssessmentControl/ControlManifest.Input.xml) `
-          -replace 'version="([0-9\.]+)"', 'version="${{ steps.bump.outputs.new }}"' `
-          | Set-Content AssessmentPCFControl/AssessmentControl/ControlManifest.Input.xml
+            -replace 'version="([0-9\.]+)"', 'version="${{ steps.bump.outputs.new }}"' `
+            | Set-Content AssessmentPCFControl/AssessmentControl/ControlManifest.Input.xml
 
       - name: Update Solution.xml
+        shell: pwsh
         run: |
           (Get-Content src/Other/Solution.xml) `
-          -replace '<Version>[0-9\.]+</Version>', "<Version>${{ steps.bump.outputs.new }}</Version>" `
-          | Set-Content src/Other/Solution.xml
+            -replace '<Version>[0-9\.]+</Version>', "<Version>${{ steps.bump.outputs.new }}</Version>" `
+            | Set-Content src/Other/Solution.xml
 
       - name: Build PCF
         shell: pwsh
@@ -73,6 +72,7 @@ jobs:
           dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
 
       - name: Commit + push
+        shell: bash
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -81,14 +81,16 @@ jobs:
           git push origin HEAD
 
       - name: Update GitHub Variable PCF_VERSION
+        shell: bash
         run: |
           curl -X PATCH \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
-          https://api.github.com/repos/${{ github.repository }}/actions/variables/PCF_VERSION \
-          -d "{\"value\":\"${{ steps.bump.outputs.new }}\"}"
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/actions/variables/PCF_VERSION \
+            -d "{\"value\":\"${{ steps.bump.outputs.new }}\"}"
 
       - name: Create Git Tag
+        shell: bash
         run: |
           git tag v${{ steps.bump.outputs.new }}
           git push origin v${{ steps.bump.outputs.new }}

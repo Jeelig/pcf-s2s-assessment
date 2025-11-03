@@ -78,12 +78,17 @@ jobs:
       - name: Build PCF
         shell: pwsh
         run: |
+          $version = "${{ steps.bump.outputs.new }}"
           cd AssessmentPCFControl
           npm install
           npm run build
           cd ..
           pac solution add-reference --path "AssessmentPCFControl"
           dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
+          # Renommage des fichiers zip avec suffixe de version
+          $sourcePath = "bin/Release"
+          Rename-Item -Path "$sourcePath/AssessmentPCF.zip" -NewName "AssessmentPCF_v$version.zip"
+          Rename-Item -Path "$sourcePath/AssessmentPCF_managed.zip" -NewName "AssessmentPCF_managed_v$version.zip"
 
       - name: Upload PCF artifact
         uses: actions/upload-artifact@v4

@@ -93,7 +93,7 @@ jobs:
       - name: Upload PCF artifact
         uses: actions/upload-artifact@v4
         with:
-          name: assessment-pcf-control
+          name: assessment-pcf-control-v${{ steps.bump.outputs.new }}
           path: bin/Release/
           retention-days: 7
           if-no-files-found: error

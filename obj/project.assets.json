@@ -789,19 +789,25 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Y9CSLA706\\.nuget\\packages\\": {}
+    "C:\\Users\\runneradmin\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\ibm-repos\\RC\\S2S\\pcf-s2s-assessment\\AssessmentPCF.cdsproj",
+      "projectUniqueName": "D:\\a\\pcf-s2s-assessment\\pcf-s2s-assessment\\AssessmentPCF.cdsproj",
       "projectName": "AssessmentPCF",
-      "projectPath": "C:\\ibm-repos\\RC\\S2S\\pcf-s2s-assessment\\AssessmentPCF.cdsproj",
-      "packagesPath": "C:\\Users\\Y9CSLA706\\.nuget\\packages\\",
-      "outputPath": "C:\\ibm-repos\\RC\\S2S\\pcf-s2s-assessment\\obj\\",
+      "projectPath": "D:\\a\\pcf-s2s-assessment\\pcf-s2s-assessment\\AssessmentPCF.cdsproj",
+      "packagesPath": "C:\\Users\\runneradmin\\.nuget\\packages\\",
+      "outputPath": "D:\\a\\pcf-s2s-assessment\\pcf-s2s-assessment\\obj\\",
       "projectStyle": "PackageReference",
+      "UsingMicrosoftNETSdk": false,
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "C:\\Users\\Y9CSLA706\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\runneradmin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
@@ -815,11 +821,16 @@
         "net462": {
           "targetAlias": "net462",
           "projectReferences": {
-            "C:\\ibm-repos\\RC\\S2S\\pcf-s2s-assessment\\AssessmentPCFControl\\AssessmentPCFControl.pcfproj": {
-              "projectPath": "C:\\ibm-repos\\RC\\S2S\\pcf-s2s-assessment\\AssessmentPCFControl\\AssessmentPCFControl.pcfproj"
+            "D:\\a\\pcf-s2s-assessment\\pcf-s2s-assessment\\AssessmentPCFControl\\AssessmentPCFControl.pcfproj": {
+              "projectPath": "D:\\a\\pcf-s2s-assessment\\pcf-s2s-assessment\\AssessmentPCFControl\\AssessmentPCFControl.pcfproj"
             }
           }
         }
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
       }
     },
     "frameworks": {

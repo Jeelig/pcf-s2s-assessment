@@ -33,9 +33,7 @@ jobs:
       - name: Add pac to PATH
         shell: pwsh
         run: |
-          $cliDir = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\PowerAppsCLI" -Directory | Where-Object { $_.Name -like 'Microsoft.PowerApps.CLI.*' } | Select-Object -First 1
-          $toolsPath = Join-Path $cliDir.FullName "tools"
-          echo $toolsPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "$env:POWERPLATFORMTOOLS_PACCLIPATH\pac\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Bump version
         id: bump

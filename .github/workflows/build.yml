@@ -31,7 +31,6 @@ jobs:
             echo "$env:USERPROFILE" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           }
 
-
       - name: Install Power Platform CLI via NuGet
         shell: pwsh
         run: |
@@ -42,7 +41,6 @@ jobs:
           $pacPath = Get-ChildItem "$env:USERPROFILE\pac\Microsoft.PowerApps.CLI*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           $toolsPath = Join-Path $pacPath.FullName "tools"
           echo "$toolsPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
 
       - name: Add pac to PATH
         shell: pwsh
@@ -86,6 +84,14 @@ jobs:
           cd ..
           pac solution add-reference --path "AssessmentPCFControl"
           dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
+
+      - name: Upload PCF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: assessment-pcf-control
+          path: bin/Release/
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Commit + push
         shell: bash

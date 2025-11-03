@@ -2,6 +2,9 @@ name: Bump PCF Version
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - develop
 
 jobs:
   bump-pcf:

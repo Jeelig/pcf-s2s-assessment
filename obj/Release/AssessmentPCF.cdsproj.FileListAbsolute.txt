@@ -1,2 +1,4 @@
 C:\ibm-repos\RC\S2S\pcf-s2s-assessment\obj\Release\AssessmentPCF.cdsproj.AssemblyReference.cache
 C:\ibm-repos\RC\S2S\pcf-s2s-assessment\obj\Release\AssessmentPCF.cdsproj.CoreCompileInputs.cache
+D:\a\pcf-s2s-assessment\pcf-s2s-assessment\obj\Release\AssessmentPCF.cdsproj.AssemblyReference.cache
+D:\a\pcf-s2s-assessment\pcf-s2s-assessment\obj\Release\AssessmentPCF.cdsproj.CoreCompileInputs.cache

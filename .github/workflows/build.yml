@@ -30,6 +30,13 @@ jobs:
       - name: Install Power Platform Tools
         uses: microsoft/powerplatform-actions/actions-install@v1
 
+      - name: Add pac to PATH
+        shell: pwsh
+        run: |
+          $cliDir = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\PowerAppsCLI" -Directory | Where-Object { $_.Name -like 'Microsoft.PowerApps.CLI.*' } | Select-Object -First 1
+          $toolsPath = Join-Path $cliDir.FullName "tools"
+          echo $toolsPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Bump version
         id: bump
         shell: bash
@@ -56,26 +63,15 @@ jobs:
           -replace '<Version>[0-9\.]+</Version>', "<Version>${{ steps.bump.outputs.new }}</Version>" `
           | Set-Content src/Other/Solution.xml
 
-      - name: Build PCF (Add pac to PATH)
+      - name: Build PCF
         shell: pwsh
         run: |
-          echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           cd AssessmentPCFControl
           npm install
           npm run build
           cd ..
           pac solution add-reference --path "AssessmentPCFControl"
           dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
-
-      #- name: Build PCF
-      #  shell: pwsh
-      #  run: |
-      #    cd AssessmentPCFControl
-      #    npm install
-      #    npm run build
-      #    cd ..
-      #    pac solution add-reference --path "AssessmentPCFControl"
-      #    dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
 
       - name: Commit + push
         run: |

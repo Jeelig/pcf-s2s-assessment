@@ -33,7 +33,7 @@ jobs:
       - name: Add pac to PATH
         shell: pwsh
         run: |
-          echo "$env:USERPROFILE\AppData\Local\Microsoft\PowerAppsCli" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "$env:USERPROFILE\AppData\Local\Microsoft\PowerAppsCLI" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Bump version
         id: bump

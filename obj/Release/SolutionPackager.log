@@ -331,3 +331,40 @@ Unmanaged Pack complete.
 2025-11-03 19:05:41.450 - Info	
 Managed Pack complete.
 
+2025-11-03 19:17:21.271 - Info	
+Packing D:\a\pcf-s2s-assessment\pcf-s2s-assessment\obj\Release\Metadata to bin\Release\AssessmentPCF.zip and bin\Release\AssessmentPCF_managed.zip
+
+2025-11-03 19:17:21.281 - Info	Processing Component: Entities
+2025-11-03 19:17:21.283 - Info	Processing Component: Roles
+2025-11-03 19:17:21.285 - Info	Processing Component: Workflows
+2025-11-03 19:17:21.285 - Info	Processing Component: FieldSecurityProfiles
+2025-11-03 19:17:21.285 - Info	Processing Component: Templates
+2025-11-03 19:17:21.286 - Info	Processing Component: EntityMaps
+2025-11-03 19:17:21.286 - Info	Processing Component: EntityRelationships
+2025-11-03 19:17:21.287 - Info	Processing Component: OrganizationSettings
+2025-11-03 19:17:21.287 - Info	Processing Component: optionsets
+2025-11-03 19:17:21.287 - Info	Processing Component: CustomControls
+2025-11-03 19:17:21.291 - Info	 - RC.S2S.AssessmentControl
+2025-11-03 19:17:21.292 - Info	Processing Component: SolutionPluginAssemblies
+2025-11-03 19:17:21.293 - Info	Processing Component: EntityDataProviders
+2025-11-03 19:17:21.296 - Info	Processing Sharded Component Files
+2025-11-03 19:17:21.316 - Info	
+Unmanaged Pack complete.
+
+2025-11-03 19:17:21.317 - Info	Processing Component: Entities
+2025-11-03 19:17:21.317 - Info	Processing Component: Roles
+2025-11-03 19:17:21.317 - Info	Processing Component: Workflows
+2025-11-03 19:17:21.317 - Info	Processing Component: FieldSecurityProfiles
+2025-11-03 19:17:21.317 - Info	Processing Component: Templates
+2025-11-03 19:17:21.317 - Info	Processing Component: EntityMaps
+2025-11-03 19:17:21.317 - Info	Processing Component: EntityRelationships
+2025-11-03 19:17:21.317 - Info	Processing Component: OrganizationSettings
+2025-11-03 19:17:21.318 - Info	Processing Component: optionsets
+2025-11-03 19:17:21.318 - Info	Processing Component: CustomControls
+2025-11-03 19:17:21.318 - Info	 - RC.S2S.AssessmentControl
+2025-11-03 19:17:21.318 - Info	Processing Component: SolutionPluginAssemblies
+2025-11-03 19:17:21.319 - Info	Processing Component: EntityDataProviders
+2025-11-03 19:17:21.319 - Info	Processing Sharded Component Files
+2025-11-03 19:17:21.321 - Info	
+Managed Pack complete.
+

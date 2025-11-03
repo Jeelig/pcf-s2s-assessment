@@ -2,12 +2,15 @@ name: Bump PCF Version
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - develop
+  pull_request:
+    types: [closed]
+  #push:
+  #  branches:
+  #    - develop
 
 jobs:
   bump-pcf:
+    if: github.event.pull_request.merged == true
     runs-on: windows-latest
 
     steps:

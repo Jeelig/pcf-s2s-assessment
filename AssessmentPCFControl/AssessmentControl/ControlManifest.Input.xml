@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.4.42" encoding="utf-8" ?>
 <manifest>
-  <control namespace="RC.S2S" constructor="AssessmentControl" version="1.4.39" display-name-key="AssessmentControl" description-key="AssessmentControl_Desc_Key" control-type="standard">  
+  <control namespace="RC.S2S" constructor="AssessmentControl" version="1.4.42" display-name-key="AssessmentControl" description-key="AssessmentControl_Desc_Key" control-type="standard">  
     <!-- Input Properties -->
     <property name="auditId" display-name-key="Audit_ID_Property_Display_Key" description-key="Audit_ID_Property_Desc_Key" of-type="SingleLine.Text" usage="bound" required="true" />    
     <!-- Optional: Pass full audit data as JSON for offline scenarios -->

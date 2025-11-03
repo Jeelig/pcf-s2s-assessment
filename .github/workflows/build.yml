@@ -98,6 +98,11 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      - name: Cleanup bin/Release before commit
+        shell: pwsh
+        run: |
+          Remove-Item -Path "bin/Release\*" -Force -Recurse
+
       - name: Commit + push
         shell: bash
         run: |

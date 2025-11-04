@@ -105,9 +105,11 @@ jobs:
                         print(f"  Artifact ID  : {artifact['id']}")
                         print(f"  Nom          : {artifact['name']}")
 
-                        print(f"run_id={run_id}" >> $GITHUB_OUTPUT)
-                        print(f"artifact_id={artifact['id']}" >> $GITHUB_OUTPUT)
-                        print(f"artifact_name={artifact['name']}" >> $GITHUB_OUTPUT)
+                        with open(output, "a") as gh_out:
+                          gh_out.write(f"run_id={run_id}\n")
+                          gh_out.write(f"artifact_id={artifact['id']}\n")
+                          gh_out.write(f"artifact_name={artifact['name']}\n")
+
                         found = True
                         break
               except Exception as e:

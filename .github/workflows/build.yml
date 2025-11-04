@@ -1,146 +1,165 @@
-name: Trouver artefact dans "Build PCF Control"
+name: Build PCF Control
 
 on:
   workflow_dispatch:
-    inputs:
-      search_term:
-        description: 'Mot à chercher dans le nom de l’artefact (ex: toto, release, pcf)'
-        required: true
-        type: string
-      max_runs:
-        description: 'Nombre maximum de runs à analyser (défaut: 50)'
-        required: false
-        default: '50'
-        type: string
+  pull_request:
+    types: [closed]
+    branches: [develop]
 
 jobs:
-  find-artifact:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read  # Nécessaire pour lister runs et artefacts
-
+  
+  BUILD-PCF:
+    #if: github.event.pull_request.merged == true
+    runs-on: windows-latest
+    outputs:
+      new: ${{ steps.bump.outputs.new }}
     steps:
-      - name: Préparer les entrées
-        id: inputs
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup .NET 6
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Install NuGet (if needed)
+        shell: pwsh
         run: |
-          SEARCH="${{ inputs.search_term }}"
-          MAX_RUNS="${{ inputs.max_runs }}"
+          if (-not (Get-Command nuget -ErrorAction SilentlyContinue)) {
+            Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile "$env:USERPROFILE\nuget.exe"
+            echo "$env:USERPROFILE" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
 
-          if [ -z "$SEARCH" ]; then
-            echo "Erreur : search_term est requis"
-            exit 1
-          fi
-
-          if ! [[ "$MAX_RUNS" =~ ^[0-9]+$ ]] || [ "$MAX_RUNS" -lt 1 ] || [ "$MAX_RUNS" -gt 200 ]; then
-            MAX_RUNS=50
-          fi
-
-          echo "Recherche de l'artefact contenant : '$SEARCH'"
-          echo "Dans le workflow : 'Build PCF Control'"
-          echo "Sur les $MAX_RUNS derniers runs"
-
-          echo "search=$SEARCH" >> $GITHUB_OUTPUT
-          echo "max_runs=$MAX_RUNS" >> $GITHUB_OUTPUT
-
-      - name: Récupérer l’ID du workflow "Build PCF Control"
-        id: get-workflow-id
+      - name: Install Power Platform CLI via NuGet
+        shell: pwsh
         run: |
-          WORKFLOW_ID=$(gh workflow list --json id,name | jq -r '.[] | select(.name == "Build PCF Control") | .id')
-          
-          if [ -z "$WORKFLOW_ID" ]; then
-            echo "Erreur : Workflow 'Build PCF Control' non trouvé"
-            echo "Workflows disponibles :"
-            gh workflow list
-            exit 1
-          fi
-          
-          echo "Workflow ID : $WORKFLOW_ID"
-          echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
+          # Télécharger le package NuGet manuellement
+          nuget install Microsoft.PowerApps.CLI -Source https://api.nuget.org/v3/index.json -OutputDirectory "$env:USERPROFILE\pac"
 
-      - name: Lister les runs du workflow
-        id: list-runs
+          # Ajouter pac.exe au PATH
+          $pacPath = Get-ChildItem "$env:USERPROFILE\pac\Microsoft.PowerApps.CLI*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $toolsPath = Join-Path $pacPath.FullName "tools"
+          echo "$toolsPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Add pac to PATH
+        shell: pwsh
         run: |
-          gh api \
-            -H "Accept: application/vnd.github.v3+json" \
-            "/repos/${{ github.repository }}/actions/workflows/${{ steps.get-workflow-id.outputs.workflow_id }}/runs?per_page=${{ steps.inputs.outputs.max_runs }}&status=completed" \
-            > runs.json
+          echo "$env:USERPROFILE\AppData\Local\Microsoft\PowerAppsCLI" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-          TOTAL=$(jq '.total_count' runs.json)
-          echo "$TOTAL runs analysés"
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Rechercher l’artefact
-        id: search
+      - name: Bump version
+        id: bump
+        shell: bash
         run: |
-          SEARCH="${{ steps.inputs.outputs.search }}"
-          RUN_ID=""
-          ARTIFACT_ID=""
-          ARTIFACT_NAME=""
-          RUN_URL=""
+          current="${{ vars.PCF_VERSION }}"
+          echo "current version=$current"
+          major=$(echo $current | cut -d. -f1)
+          minor=$(echo $current | cut -d. -f2)
+          build=$(echo $current | cut -d. -f3)
+          new_build=$((build+1))
+          new="$major.$minor.$new_build"
+          echo "new=$new"
+          echo "new=$new" >> $GITHUB_OUTPUT
 
-          while IFS= read -r run; do
-            ARTIFACTS_URL=$(echo "$run" | jq -r '.artifacts_url')
-            ARTIFACT_DATA=$(gh api "$ARTIFACTS_URL" 2>/dev/null || echo '{"artifacts":[]}')
-
-            MATCH=$(echo "$ARTIFACT_DATA" | jq -r --arg term "$SEARCH" \
-              '.artifacts[] | select(.name | ascii_downcase | contains($term | ascii_downcase)) | .id, .name' | paste -d ' ' - -)
-
-            if [ -n "$MATCH" ]; then
-              ARTIFACT_ID=$(echo "$MATCH" | cut -d' ' -f1)
-              ARTIFACT_NAME=$(echo "$MATCH" | cut -d' ' -f2-)
-              RUN_ID=$(echo "$run" | jq -r '.id')
-              RUN_URL=$(echo "$run" | jq -r '.html_url')
-              CREATED_AT=$(echo "$run" | jq -r '.created_at')
-              echo "Trouvé dans run du $CREATED_AT"
-              break
-            fi
-          done < <(jq -c '.runs[]' runs.json)
-
-          if [ -z "$RUN_ID" ]; then
-            echo "Aucun artefact contenant '$SEARCH' trouvé dans les ${{ steps.inputs.outputs.max_runs }} derniers runs de 'Build PCF Control'."
-            echo "run_id=" >> $GITHUB_OUTPUT
-            echo "artifact_id=" >> $GITHUB_OUTPUT
-            echo "artifact_name=" >> $GITHUB_OUTPUT
-            echo "run_url=" >> $GITHUB_OUTPUT
-          else
-            echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
-            echo "artifact_id=$ARTIFACT_ID" >> $GITHUB_OUTPUT
-            echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
-            echo "run_url=$RUN_URL" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Télécharger l’artefact (si trouvé)
-        if: steps.search.outputs.run_id != ''
+      - name: Update ControlManifest.Input.xml
+        shell: pwsh
         run: |
-          DOWNLOAD_URL=$(gh api \
-            "/repos/${{ github.repository }}/actions/artifacts/${{ steps.search.outputs.artifact_id }}/zip" \
-            -H "Authorization: token ${{ github.token }}" \
-            --silent --show-error --location)
+          (Get-Content AssessmentPCFControl/AssessmentControl/ControlManifest.Input.xml) `
+            -replace 'version="([0-9\.]+)"', 'version="${{ steps.bump.outputs.new }}"' `
+            | Set-Content AssessmentPCFControl/AssessmentControl/ControlManifest.Input.xml
 
-          echo "Téléchargement de l'artefact..."
-          curl -L -H "Authorization: token ${{ github.token }}" "$DOWNLOAD_URL" -o found-artifact.zip
+      - name: Update Solution.xml
+        shell: pwsh
+        run: |
+          (Get-Content src/Other/Solution.xml) `
+            -replace '<Version>[0-9\.]+</Version>', "<Version>${{ steps.bump.outputs.new }}</Version>" `
+            | Set-Content src/Other/Solution.xml
 
-          echo "Artefact téléchargé : found-artifact.zip"
-          unzip -l found-artifact.zip || echo "Contenu non listable (binaire ou corrompu)"
+      - name: Build PCF
+        shell: pwsh
+        run: |
+          $version = "${{ steps.bump.outputs.new }}"
+          cd AssessmentPCFControl
+          npm install
+          npm run build
+          cd ..
+          pac solution add-reference --path "AssessmentPCFControl"
+          dotnet build AssessmentPCF.cdsproj /p:Configuration=Release
+          # Renommage des fichiers zip avec suffixe de version
+          $sourcePath = "bin/Release"
+          Rename-Item -Path "$sourcePath/AssessmentPCF.zip" -NewName "AssessmentPCF_v$version.zip"
+          Rename-Item -Path "$sourcePath/AssessmentPCF_managed.zip" -NewName "AssessmentPCF_managed_v$version.zip"
 
-      - name: Uploader comme artefact du run actuel
-        if: steps.search.outputs.run_id != ''
+      - name: Upload PCF artifact
         uses: actions/upload-artifact@v4
         with:
-          name: found-artifact-${{ steps.search.outputs.artifact_name }}
-          path: found-artifact.zip
+          name: assessment-pcf-control-v${{ steps.bump.outputs.new }}
+          path: bin/Release/
+          retention-days: 7
+          if-no-files-found: error
 
-      - name: Résumé
+      - name: Cleanup bin/Release before commit
+        shell: pwsh
         run: |
-          if [ -z "${{ steps.search.outputs.run_id }}" ]; then
-            echo "Aucun artefact contenant '${{ inputs.search_term }}' trouvé dans 'Build PCF Control'."
-          else
-            echo "Artefact trouvé !"
-            echo "Nom : ${{ steps.search.outputs.artifact_name }}"
-            echo "Run : ${{ steps.search.outputs.run_url }}"
-            echo "Téléchargé dans ce run comme artefact"
-          fi
+          Remove-Item -Path "bin/Release\*" -Force -Recurse
+
+      - name: Commit + push
+        shell: bash
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Bump PCF version to ${{ steps.bump.outputs.new }}"
+          git push origin HEAD
+
+      - name: Update GitHub Variable PCF_VERSION
+        shell: bash
+        run: |
+          curl -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/actions/variables/PCF_VERSION \
+            -d "{\"value\":\"${{ steps.bump.outputs.new }}\"}"
+
+      - name: Create Git Tag
+        shell: bash
+        run: |
+          git tag v${{ steps.bump.outputs.new }}
+          git push origin v${{ steps.bump.outputs.new }}
+
+  CREATE-TICKET:
+    needs: BUILD-PCF
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub Issue with new release
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          VERSION: ${{ needs.BUILD-PCF.outputs.new }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Créer un fichier JSON propre pour éviter les problèmes d'échappement
+          cat > issue.json << EOF
+          {
+            "title": "Release PCF v$VERSION",
+            "body": "New PCF control version built: **v$VERSION**\n\n[Download artifacts from workflow run]($RUN_URL)",
+            "assignees": ["jeelig"],
+            "labels": ["release", "pcf"]
+          }
+          EOF
+
+          # Envoyer la requête
+          curl -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            https://api.github.com/repos/${{ github.repository }}/issues \
+            -d @issue.json
+
+          # Nettoyer
+          rm issue.json

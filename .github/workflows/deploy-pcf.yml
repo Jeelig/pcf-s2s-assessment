@@ -73,9 +73,11 @@ jobs:
           import json
           import os
           import sys
+          import urllib.request
 
           search = os.environ['SEARCH_STRING'].lower()
           found = False
+          output = os.environ['GITHUB_OUTPUT']
 
           with open('runs.json', 'r') as f:
               runs = json.load(f)
@@ -86,8 +88,6 @@ jobs:
 
               print(f"Vérification du run {run_id}...")
 
-              # Récupérer les artéfacts du run
-              import urllib.request
               req = urllib.request.Request(artifacts_url)
               req.add_header('Authorization', f"token {os.environ['GH_TOKEN']}")
               req.add_header('Accept', 'application/vnd.github+json')
@@ -100,15 +100,15 @@ jobs:
                 for artifact in artifacts:
                     name = artifact['name'].lower()
                     if search in name:
-                        print(f"ARTÉFACT TROUVÉ !")
-                        print(f"  Run ID       : {run_id}")
-                        print(f"  Artifact ID  : {artifact['id']}")
-                        print(f"  Nom          : {artifact['name']}")
+                        print("ARTÉFACT TROUVÉ !")
+                        print(f"Run ID : {run_id}")
+                        print(f"Artifact ID : {artifact['id']}")
+                        print(f"Name : {artifact['name']}")
 
                         with open(output, "a") as gh_out:
-                          gh_out.write(f"run_id={run_id}\n")
-                          gh_out.write(f"artifact_id={artifact['id']}\n")
-                          gh_out.write(f"artifact_name={artifact['name']}\n")
+                            gh_out.write(f"run_id={run_id}\n")
+                            gh_out.write(f"artifact_id={artifact['id']}\n")
+                            gh_out.write(f"artifact_name={artifact['name']}\n")
 
                         found = True
                         break

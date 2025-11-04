@@ -71,7 +71,7 @@ jobs:
           TOTAL=$(jq '.total_count' runs.json)
           echo "$TOTAL runs analysés"
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Rechercher l'artefact
         id: search

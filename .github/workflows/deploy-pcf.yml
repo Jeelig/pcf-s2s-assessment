@@ -1,145 +1,129 @@
-name: Deploy PCF
+name: Trouver un run avec artéfact contenant une chaîne
 
 on:
   workflow_dispatch:
     inputs:
-      search_term:
-        description: 'Mot à chercher dans le nom de l’artefact (ex: toto, release, pcf)'
+      workflow_file:
+        description: 'Nom du fichier workflow (ex: build.yml)'
         required: true
-        type: string
-      max_runs:
-        description: 'Nombre maximum de runs à analyser (défaut: 50)'
-        required: false
-        default: '50'
-        type: string
+        default: 'build.yml'
+      search_string:
+        description: 'Chaîne à rechercher dans le nom des artéfacts'
+        required: true
+        default: 'recherche'
 
 jobs:
   find-artifact:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: read  # Nécessaire pour lister runs et artefacts
-
+      actions: read  # Nécessaire pour lister les runs et artéfacts
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+      artifact_id: ${{ steps.find.outputs.artifact_id }}
+      artifact_name: ${{ steps.find.outputs.artifact_name }}
     steps:
-      - name: Préparer les entrées
-        id: inputs
+      - name: Vérifier les entrées
         run: |
-          SEARCH="${{ inputs.search_term }}"
-          MAX_RUNS="${{ inputs.max_runs }}"
+          echo "Workflow fichier : ${{ inputs.workflow_file }}"
+          echo "Recherche dans artéfacts : '${{ inputs.search_string }}'"
 
-          if [ -z "$SEARCH" ]; then
-            echo "Erreur : search_term est requis"
+      - name: Récupérer l'ID du workflow
+        id: get-workflow-id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WORKFLOW_FILE="${{ inputs.workflow_file }}"
+          echo "Récupération de l'ID du workflow : $WORKFLOW_FILE"
+
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/actions/workflows" \
+            --jq ".workflows[] | select(.path == \".github/workflows/$WORKFLOW_FILE\") | .id" > workflow_id.txt
+
+          WORKFLOW_ID=$(cat workflow_id.txt)
+
+          if [ -z "$WORKFLOW_ID" ] || [ "$WORKFLOW_ID" = "null" ]; then
+            echo "❌ Workflow non trouvé : $WORKFLOW_FILE"
             exit 1
           fi
 
-          if ! [[ "$MAX_RUNS" =~ ^[0-9]+$ ]] || [ "$MAX_RUNS" -lt 1 ] || [ "$MAX_RUNS" -gt 200 ]; then
-            MAX_RUNS=50
-          fi
-
-          echo "Recherche de l'artefact contenant : '$SEARCH'"
-          echo "Dans le workflow : 'Build PCF Control'"
-          echo "Sur les $MAX_RUNS derniers runs"
-
-          echo "search=$SEARCH" >> $GITHUB_OUTPUT
-          echo "max_runs=$MAX_RUNS" >> $GITHUB_OUTPUT
-
-      - name: Get workflow ID by file
-        id: get_wf
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: |
-          WF_FILE="build.yml"
-          WF_ID=$(gh api -H "Accept: application/vnd.github.v3+json" "/repos/${{ github.repository }}/actions/workflows" | jq -r ".workflows[] | select(.path==\".github/workflows/$WF_FILE\").id")
-
-          if [ -z "$WF_ID" ] || [ "$WF_ID" = "null" ]; then
-          echo "Workflow not found"
-          exit 1
-          fi
-
-          echo "workflow_id=$WF_ID" >> "$GITHUB_OUTPUT"
+          echo "✅ Workflow ID = $WORKFLOW_ID"
+          echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
 
       - name: Lister les runs du workflow
         id: list-runs
-        run: |
-          gh api \
-            -H "Accept: application/vnd.github.v3+json" \
-            "/repos/${{ github.repository }}/actions/workflows/${{ steps.get-workflow-id.outputs.workflow_id }}/runs?per_page=${{ steps.inputs.outputs.max_runs }}&status=completed" \
-            > runs.json
-
-          TOTAL=$(jq '.total_count' runs.json)
-          echo "$TOTAL runs analysés"
         env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
-      - name: Rechercher l'artefact
-        id: search
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SEARCH="${{ steps.inputs.outputs.search }}"
-          RUN_ID=""
-          ARTIFACT_ID=""
-          ARTIFACT_NAME=""
-          RUN_URL=""
+          WORKFLOW_ID="${{ steps.get-workflow-id.outputs.workflow_id }}"
+          echo "Liste des 50 derniers runs du workflow ID $WORKFLOW_ID..."
 
-          while IFS= read -r run; do
-            ARTIFACTS_URL=$(echo "$run" | jq -r '.artifacts_url')
-            ARTIFACT_DATA=$(gh api "$ARTIFACTS_URL" 2>/dev/null || echo '{"artifacts":[]}')
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs?per_page=50" \
+            --jq '.workflow_runs[] | {id, status, conclusion, artifacts_url}' > runs.json
 
-            MATCH=$(echo "$ARTIFACT_DATA" | jq -r --arg term "$SEARCH" \
-              '.artifacts[] | select(.name | ascii_downcase | contains($term | ascii_downcase)) | .id, .name' | paste -d ' ' - -)
-
-            if [ -n "$MATCH" ]; then
-              ARTIFACT_ID=$(echo "$MATCH" | cut -d' ' -f1)
-              ARTIFACT_NAME=$(echo "$MATCH" | cut -d' ' -f2-)
-              RUN_ID=$(echo "$run" | jq -r '.id')
-              RUN_URL=$(echo "$run" | jq -r '.html_url')
-              CREATED_AT=$(echo "$run" | jq -r '.created_at')
-              echo "Trouvé dans run du $CREATED_AT"
-              break
-            fi
-          done < <(jq -c '.runs[]' runs.json)
-
-          if [ -z "$RUN_ID" ]; then
-            echo "Aucun artefact contenant '$SEARCH' trouvé dans les ${{ steps.inputs.outputs.max_runs }} derniers runs de 'Build PCF Control'."
-            echo "run_id=" >> $GITHUB_OUTPUT
-            echo "artifact_id=" >> $GITHUB_OUTPUT
-            echo "artifact_name=" >> $GITHUB_OUTPUT
-            echo "run_url=" >> $GITHUB_OUTPUT
-          else
-            echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
-            echo "artifact_id=$ARTIFACT_ID" >> $GITHUB_OUTPUT
-            echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
-            echo "run_url=$RUN_URL" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Télécharger l'artefact (si trouvé)
-        if: steps.search.outputs.run_id != ''
+      - name: Chercher un artéfact contenant la chaîne
+        id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEARCH_STRING: ${{ inputs.search_string }}
         run: |
-          DOWNLOAD_URL=$(gh api \
-            "/repos/${{ github.repository }}/actions/artifacts/${{ steps.search.outputs.artifact_id }}/zip" \
-            -H "Authorization: token ${{ github.token }}" \
-            --silent --show-error --location)
+          import json
+          import os
+          import sys
 
-          echo "Téléchargement de l'artefact..."
-          curl -L -H "Authorization: token ${{ github.token }}" "$DOWNLOAD_URL" -o found-artifact.zip
+          search = os.environ['SEARCH_STRING'].lower()
+          found = False
 
-          echo "Artefact téléchargé : found-artifact.zip"
-          unzip -l found-artifact.zip || echo "Contenu non listable (binaire ou corrompu)"
+          with open('runs.json', 'r') as f:
+              runs = json.load(f)
 
-      - name: Uploader comme artefact du run actuel
-        if: steps.search.outputs.run_id != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: found-artifact-${{ steps.search.outputs.artifact_name }}
-          path: found-artifact.zip
+          for run in runs:
+              run_id = run['id']
+              artifacts_url = run['artifacts_url']
 
-      - name: Résumé
+              print(f"Vérification du run {run_id}...")
+
+              # Récupérer les artéfacts du run
+              import urllib.request
+              req = urllib.request.Request(artifacts_url)
+              req.add_header('Authorization', f"token {os.environ['GH_TOKEN']}")
+              req.add_header('Accept', 'application/vnd.github+json')
+
+              try:
+                with urllib.request.urlopen(req) as response:
+                    data = json.loads(response.read().decode())
+                    artifacts = data.get('artifacts', [])
+
+                for artifact in artifacts:
+                    name = artifact['name'].lower()
+                    if search in name:
+                        print(f"ARTÉFACT TROUVÉ !")
+                        print(f"  Run ID       : {run_id}")
+                        print(f"  Artifact ID  : {artifact['id']}")
+                        print(f"  Nom          : {artifact['name']}")
+
+                        print(f"run_id={run_id}" >> $GITHUB_OUTPUT)
+                        print(f"artifact_id={artifact['id']}" >> $GITHUB_OUTPUT)
+                        print(f"artifact_name={artifact['name']}" >> $GITHUB_OUTPUT)
+                        found = True
+                        break
+              except Exception as e:
+                print(f"Erreur API pour run {run_id}: {e}")
+                continue
+
+              if found:
+                break
+
+          if not found:
+            print(f"Aucun artéfact contenant '{search}' trouvé dans les 50 derniers runs.")
+            sys.exit(1)
+        shell: python
+
+      - name: Résultat final
         run: |
-          if [ -z "${{ steps.search.outputs.run_id }}" ]; then
-            echo "Aucun artefact contenant '${{ inputs.search_term }}' trouvé dans 'Build PCF Control'."
-          else
-            echo "Artefact trouvé !"
-            echo "Nom : ${{ steps.search.outputs.artifact_name }}"
-            echo "Run : ${{ steps.search.outputs.run_url }}"
-            echo "Téléchargé dans ce run comme artefact"
-          fi
+          echo "Run ID avec artéfact : ${{ steps.find.outputs.run_id }}"
+          echo "Artifact ID          : ${{ steps.find.outputs.artifact_id }}"
+          echo "Nom de l'artéfact    : ${{ steps.find.outputs.artifact_name }}"

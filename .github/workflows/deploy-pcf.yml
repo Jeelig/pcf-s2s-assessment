@@ -226,7 +226,7 @@ jobs:
           CLIENT_ID: ${{ secrets.PP_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.PP_CLIENT_SECRET }}
           TENANT_ID: ${{ secrets.PP_TENANT_ID }}
-          ENV_URL: ${{ inputs.environment_name }}
+          ENV_URL: ${{ secrets.PP_ENV_URL }}
         run: |
           pac auth create --url "$env:ENV_URL" --tenant "$env:TENANT_ID" --applicationId "$env:CLIENT_ID" --clientSecret "$env:CLIENT_SECRET"
           pac org who

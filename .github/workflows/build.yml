@@ -1,4 +1,4 @@
-name: Bump PCF Version
+name: Build PCF Control
 
 on:
   workflow_dispatch:

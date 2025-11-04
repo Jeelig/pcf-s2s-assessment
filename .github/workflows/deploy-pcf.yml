@@ -3,10 +3,13 @@ name: Deploy PCF to Environment
 on:
   workflow_dispatch:
     inputs:
-      workflow_file:
-        description: 'File name (ex: build.yml)'
+      environment_name:
+        description: 'Power Platform Environment URL (ex: https://orgxxxx.crm4.dynamics.com)'
         required: true
-        default: 'build.yml'
+      #workflow_file:
+      #  description: 'File name (ex: build.yml)'
+      #  required: true
+      #  default: 'build.yml'
       search_string:
         description: 'PCF version (ex: 1.4.52)'
         required: true
@@ -25,7 +28,7 @@ jobs:
     steps:
       - name: Vérifier les entrées
         run: |
-          echo "Workflow fichier : ${{ inputs.workflow_file }}"
+          echo "Workflow fichier : build.yml"
           echo "Recherche dans artéfacts : '${{ inputs.search_string }}'"
 
       - name: Récupérer l'ID du workflow
@@ -33,7 +36,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          WORKFLOW_FILE="${{ inputs.workflow_file }}"
+          WORKFLOW_FILE="build.yml"
           echo "Récupération de l'ID du workflow : $WORKFLOW_FILE"
 
           gh api \

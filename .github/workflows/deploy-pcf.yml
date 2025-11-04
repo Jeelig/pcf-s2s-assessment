@@ -43,7 +43,7 @@ jobs:
           echo "search=$SEARCH" >> $GITHUB_OUTPUT
           echo "max_runs=$MAX_RUNS" >> $GITHUB_OUTPUT
 
-      - name: Récupérer l’ID du workflow "Build PCF Control"
+      - name: Récupérer l'ID du workflow "Build PCF Control"
         id: get-workflow-id
         run: |
           WORKFLOW_ID=$(gh workflow list --json id,name | jq -r '.[] | select(.name == "Build PCF Control") | .id')
@@ -58,7 +58,7 @@ jobs:
           echo "Workflow ID : $WORKFLOW_ID"
           echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Lister les runs du workflow
         id: list-runs
@@ -73,7 +73,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Rechercher l’artefact
+      - name: Rechercher l'artefact
         id: search
         run: |
           SEARCH="${{ steps.inputs.outputs.search }}"
@@ -113,7 +113,7 @@ jobs:
             echo "run_url=$RUN_URL" >> $GITHUB_OUTPUT
           fi
 
-      - name: Télécharger l’artefact (si trouvé)
+      - name: Télécharger l'artefact (si trouvé)
         if: steps.search.outputs.run_id != ''
         run: |
           DOWNLOAD_URL=$(gh api \

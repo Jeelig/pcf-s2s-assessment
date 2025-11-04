@@ -3,21 +3,14 @@ name: Deploy PCF to Environment
 on:
   workflow_dispatch:
     inputs:
-      #environment_name:
-      #  description: 'Power Platform Environment URL (ex: https://orgxxxx.crm4.dynamics.com)'
-      #  required: true
       environment:
-        description: 'Power Platform Environment'
-        type: choice
+        description: 'Target Power Platform Environment'
         required: true
+        type: choice
         options:
           - DEV-X
           - DEV-1
           - DEV-7
-      #workflow_file:
-      #  description: 'File name (ex: build.yml)'
-      #  required: true
-      #  default: 'build.yml'
       search_string:
         description: 'PCF version (ex: 1.4.52)'
         required: true
@@ -174,6 +167,7 @@ jobs:
   deploy-to-env:
     needs: find-artifact
     runs-on: windows-latest
+    environment: ${{ inputs.environment }}
     permissions:
       contents: read
 

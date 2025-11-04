@@ -69,6 +69,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           SEARCH_STRING: ${{ inputs.search_string }}
+        shell: python
         run: |
           import json
           import os
@@ -79,8 +80,12 @@ jobs:
           found = False
           output = os.environ['GITHUB_OUTPUT']
 
+          # load runs.json
           with open('runs.json', 'r') as f:
-              runs = json.load(f)
+              data = json.load(f)
+
+          runs = data.get("workflow_runs", [])
+          print(f"Total runs analysés: {len(runs)}")
 
           for run in runs:
               run_id = run['id']
@@ -93,36 +98,35 @@ jobs:
               req.add_header('Accept', 'application/vnd.github+json')
 
               try:
-                with urllib.request.urlopen(req) as response:
-                    data = json.loads(response.read().decode())
-                    artifacts = data.get('artifacts', [])
-
-                for artifact in artifacts:
-                    name = artifact['name'].lower()
-                    if search in name:
-                        print("ARTÉFACT TROUVÉ !")
-                        print(f"Run ID : {run_id}")
-                        print(f"Artifact ID : {artifact['id']}")
-                        print(f"Name : {artifact['name']}")
-
-                        with open(output, "a") as gh_out:
-                            gh_out.write(f"run_id={run_id}\n")
-                            gh_out.write(f"artifact_id={artifact['id']}\n")
-                            gh_out.write(f"artifact_name={artifact['name']}\n")
-
-                        found = True
-                        break
+                  with urllib.request.urlopen(req) as response:
+                      artifacts_data = json.loads(response.read().decode())
+                      artifacts = artifacts_data.get('artifacts', [])
               except Exception as e:
-                print(f"Erreur API pour run {run_id}: {e}")
-                continue
+                  print(f"Erreur API pour run {run_id}: {e}")
+                  continue
+
+              for artifact in artifacts:
+                  name = artifact['name'].lower()
+
+                  if search in name:
+                      print("✅ ARTÉFACT TROUVÉ")
+                      print(f"Run       : {run_id}")
+                      print(f"Artifact  : {artifact['id']} - {artifact['name']}")
+
+                      with open(output, "a") as gh_out:
+                          gh_out.write(f"run_id={run_id}\n")
+                          gh_out.write(f"artifact_id={artifact['id']}\n")
+                          gh_out.write(f"artifact_name={artifact['name']}\n")
+
+                      found = True
+                      break
 
               if found:
-                break
+                  break
 
           if not found:
-            print(f"Aucun artéfact contenant '{search}' trouvé dans les 50 derniers runs.")
-            sys.exit(1)
-        shell: python
+              print(f"❌ Aucun artéfact contenant '{search}' trouvé dans les derniers runs.")
+              sys.exit(1)
 
       - name: Résultat final
         run: |

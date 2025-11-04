@@ -133,16 +133,19 @@ jobs:
               print(f"Aucun artéfact ne contient '{search}'")
               sys.exit(1)
 
+      #- name: Résultat final
+      #  run: |
+      #    echo "Run ID avec artéfact : ${{ steps.find.outputs.run_id }}"
+      #    echo "Artifact ID          : ${{ steps.find.outputs.artifact_id }}"
+      #    echo "Nom de l'artéfact    : ${{ steps.find.outputs.artifact_name }}"
+
       - name: Résultat final
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           echo "Run ID avec artéfact : ${{ steps.find.outputs.run_id }}"
           echo "Artifact ID          : ${{ steps.find.outputs.artifact_id }}"
           echo "Nom de l'artéfact    : ${{ steps.find.outputs.artifact_name }}"
-
-      - name: Télécharger l'artéfact source du run trouvé
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: |
           echo "Téléchargement de l'artéfact…"
           gh run download ${{ steps.find.outputs.run_id }} \
             --name "${{ steps.find.outputs.artifact_name }}" \

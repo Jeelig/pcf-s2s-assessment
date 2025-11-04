@@ -4,13 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target Power Platform Environment'
+        description: 'Power Platform Environment'
         required: true
         type: choice
         options:
           - DEV-X
           - DEV-1
+          - DEV-2
+          - DEV-3
+          - DEV-4
+          - DEV-5
+          - DEV-6
           - DEV-7
+          - DEV-8
+          - DEV-9
+          - DEV-10
+          - DEV-11
       search_string:
         description: 'PCF version (ex: 1.4.52)'
         required: true
@@ -27,12 +36,12 @@ jobs:
       artifact_id: ${{ steps.find.outputs.artifact_id }}
       artifact_name: ${{ steps.find.outputs.artifact_name }}
     steps:
-      - name: Vérifier les entrées
+      - name: Validate inputs
         run: |
           echo "Workflow fichier : build.yml"
           echo "Recherche dans artéfacts : '${{ inputs.search_string }}'"
 
-      - name: Récupérer l'ID du workflow
+      - name: Get workflow ID
         id: get-workflow-id
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,7 +64,7 @@ jobs:
           echo "✅ Workflow ID = $WORKFLOW_ID"
           echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
 
-      - name: Lister les runs du workflow
+      - name: Retrieve workflow runs
         id: list-runs
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -68,7 +77,7 @@ jobs:
             "/repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs?per_page=50" \
             --jq '.workflow_runs[] | {id, status, conclusion, artifacts_url}' > runs.json
 
-      - name: Lister les runs du workflow
+      - name: Retrieve workflow runs (raw)
         run: |
           gh api \
             -H "Accept: application/vnd.github+json" \
@@ -77,7 +86,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-      - name: Chercher un artéfact contenant la chaîne
+      - name: Search artifact that contains version
         id: find
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -137,13 +146,13 @@ jobs:
               print(f"Aucun artéfact ne contient '{search}'")
               sys.exit(1)
 
-      - name: Checkout repo (obligatoire pour gh run download)
+      - name: Checkout repo (required for gh run download)
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-      - name: Télécharger l'artéfact source du run trouvé
+      - name: Download artifact from source run
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
@@ -152,12 +161,12 @@ jobs:
             --name "${{ steps.find.outputs.artifact_name }}" \
             --dir ./pcf-artifact
 
-      - name: Supprimer la version managed
+      - name: Remove managed version
         run: |
           echo "Suppression des zip managed..."
           find ./pcf-artifact -type f -name "*managed*.zip" -delete
 
-      - name: Uploader l'artéfact dans le run actuel
+      - name: Upload artifact in current workflow run
         uses: actions/upload-artifact@v4
         with:
           name: pcf-found-${{ inputs.search_string }}
@@ -172,41 +181,41 @@ jobs:
       contents: read
 
     steps:
-      - name: Télécharger l'artéfact récupéré
+      - name: Download artifact to deploy
         uses: actions/download-artifact@v4
         with:
           name: pcf-found-${{ inputs.search_string }}
           path: ./deploy-folder
 
-      - name: Supprimer version managed
+      - name: Remove managed ZIP
         shell: pwsh
         run: |
           Get-ChildItem "./deploy-folder" -Filter "*managed*.zip" | Remove-Item -Force
     
-      - name: Déterminer l'URL de l'environnement
-        id: resolve-env
-        shell: bash
-        run: |
-          case "${{ inputs.environment }}" in DEV)
-              echo "env_url=https://org-dev.crm4.dynamics.com" >> $GITHUB_OUTPUT
-              ;;
-            UAT)
-              echo "env_url=https://org-uat.crm4.dynamics.com" >> $GITHUB_OUTPUT
-              ;;
-            PREPROD)
-              echo "env_url=https://org-preprod.crm4.dynamics.com" >> $GITHUB_OUTPUT
-              ;;
-            PROD)
-              echo "env_url=https://org.crm4.dynamics.com" >> $GITHUB_OUTPUT
-              ;;
-          esac
+      #- name: Déterminer l'URL de l'environnement
+      #  id: resolve-env
+      #  shell: bash
+      #  run: |
+      #    case "${{ inputs.environment }}" in DEV)
+      #        echo "env_url=https://org-dev.crm4.dynamics.com" >> $GITHUB_OUTPUT
+      #        ;;
+      #      UAT)
+      #        echo "env_url=https://org-uat.crm4.dynamics.com" >> $GITHUB_OUTPUT
+      #        ;;
+      #      PREPROD)
+      #        echo "env_url=https://org-preprod.crm4.dynamics.com" >> $GITHUB_OUTPUT
+      #        ;;
+      #      PROD)
+      #        echo "env_url=https://org.crm4.dynamics.com" >> $GITHUB_OUTPUT
+      #        ;;
+      #    esac
     
-      - name: Installer .NET
+      - name: Install .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '6.0.x'
 
-      - name: Installer Power Platform CLI via NuGet
+      - name: Install Power Platform CLI via NuGet
         shell: pwsh
         run: |
           nuget install Microsoft.PowerApps.CLI -Source https://api.nuget.org/v3/index.json -OutputDirectory "$env:USERPROFILE\pac"
@@ -214,7 +223,7 @@ jobs:
           $toolsPath = Join-Path $pacPath.FullName "tools"
           echo "$toolsPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Connexion au tenant Power Platform
+      - name: Connect to Power Platform tenant
         shell: pwsh
         env:
           CLIENT_ID: ${{ secrets.PP_CLIENT_ID }}

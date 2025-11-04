@@ -135,22 +135,30 @@ jobs:
   CREATE-TICKET:
     needs: BUILD-PCF
     runs-on: ubuntu-latest
-
     steps:
       - name: Create GitHub Issue with new release
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           VERSION: ${{ needs.BUILD-PCF.outputs.new }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
-          body="New PCF version built: $VERSION
+          # Créer un fichier JSON propre pour éviter les problèmes d'échappement
+          cat > issue.json << EOF
+          {
+            "title": "Release PCF v$VERSION",
+            "body": "New PCF control version built: **v$VERSION**\n\n[Download artifacts from workflow run]($RUN_URL)",
+            "assignees": ["jeelig"],
+            "labels": ["release", "pcf"]
+          }
+          EOF
 
-          Download artifacts from workflow run:
-          $run_url"
-
+          # Envoyer la requête
           curl -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
             https://api.github.com/repos/${{ github.repository }}/issues \
-            -d "{\"title\":\"$VERSION\",\"body\":\"$body\",\"assignees\":[\"jeelig\"]}"
+            -d @issue.json
+
+          # Nettoyer
+          rm issue.json

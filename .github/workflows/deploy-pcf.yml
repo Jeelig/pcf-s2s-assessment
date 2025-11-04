@@ -54,7 +54,7 @@ jobs:
       - name: Lister les runs du workflow
         id: list-runs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           WORKFLOW_ID="${{ steps.get-workflow-id.outputs.workflow_id }}"
           echo "Liste des 50 derniers runs du workflow ID $WORKFLOW_ID..."
@@ -67,7 +67,7 @@ jobs:
       - name: Chercher un artéfact contenant la chaîne
         id: find
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           SEARCH_STRING: ${{ inputs.search_string }}
         run: |
           import json

@@ -43,20 +43,21 @@ jobs:
           echo "search=$SEARCH" >> $GITHUB_OUTPUT
           echo "max_runs=$MAX_RUNS" >> $GITHUB_OUTPUT
 
-      - name: Get workflow ID by name (PowerShell)
+      - name: Get workflow ID by file
         id: get_wf
-        shell: pwsh
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
-          $wfName = "Build PCF Control"
-          $json = gh workflow list -R "${{ github.repository }}" --json id,name | ConvertFrom-Json
-          $wf = $json | Where-Object { $_.name -eq $wfName } | Select-Object -First 1
-          if (-not $wf) {
-            Write-Error "Workflow '$wfName' non trouvé"
-          }
-          "workflow_id=$($wf.id)" >> $env:GITHUB_OUTPUT
+          WF_FILE="build.yml"
+          WF_ID=$(gh api -H "Accept: application/vnd.github.v3+json" "/repos/${{ github.repository }}/actions/workflows" | jq -r ".workflows[] | select(.path==\".github/workflows/$WF_FILE\").id")
 
+          if [ -z "$WF_ID" ] || [ "$WF_ID" = "null" ]; then
+          echo "Workflow not found"
+          exit 1
+          fi
+
+          echo "workflow_id=$WF_ID" >> "$GITHUB_OUTPUT"
 
       - name: Lister les runs du workflow
         id: list-runs

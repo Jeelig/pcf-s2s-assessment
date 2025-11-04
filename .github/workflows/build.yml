@@ -7,10 +7,11 @@ on:
     branches: [develop]
 
 jobs:
-  bump-pcf:
+  BUILD-PCF:
     if: github.event.pull_request.merged == true
     runs-on: windows-latest
-
+    outputs:
+      new: ${{ steps.bump.outputs.new }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -130,3 +131,26 @@ jobs:
         run: |
           git tag v${{ steps.bump.outputs.new }}
           git push origin v${{ steps.bump.outputs.new }}
+
+  CREATE-TICKET:
+    needs: BUILD-PCF
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create GitHub Issue with new release
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          VERSION: ${{ needs.BUILD-PCF.outputs.new }}
+        run: |
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          body="New PCF version built: $VERSION
+
+          Download artifacts from workflow run:
+          $run_url"
+
+          curl -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues \
+            -d "{\"title\":\"$VERSION\",\"body\":\"$body\",\"assignees\":[\"jeelig\"]}"

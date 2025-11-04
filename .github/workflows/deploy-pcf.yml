@@ -138,6 +138,18 @@ jobs:
       #    echo "Run ID avec artéfact : ${{ steps.find.outputs.run_id }}"
       #    echo "Artifact ID          : ${{ steps.find.outputs.artifact_id }}"
       #    echo "Nom de l'artéfact    : ${{ steps.find.outputs.artifact_name }}"
+      
+      #- name: Résultat final
+      #  env:
+      #    GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      #  run: |
+      #    echo "Run ID avec artéfact : ${{ steps.find.outputs.run_id }}"
+      #    echo "Artifact ID          : ${{ steps.find.outputs.artifact_id }}"
+      #    echo "Nom de l'artéfact    : ${{ steps.find.outputs.artifact_name }}"
+      #    echo "Téléchargement de l'artéfact…"
+      #    gh run download ${{ steps.find.outputs.run_id }} \
+      #      --name "${{ steps.find.outputs.artifact_name }}" \
+      #      --dir ./pcf-artifact
 
       - name: Checkout repo (obligatoire pour gh run download)
         uses: actions/checkout@v4
@@ -153,20 +165,6 @@ jobs:
           gh run download ${{ steps.find.outputs.run_id }} \
             --name "${{ steps.find.outputs.artifact_name }}" \
             --dir ./pcf-artifact
-
-      - name: Résultat final
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: |
-          echo "Run ID avec artéfact : ${{ steps.find.outputs.run_id }}"
-          echo "Artifact ID          : ${{ steps.find.outputs.artifact_id }}"
-          echo "Nom de l'artéfact    : ${{ steps.find.outputs.artifact_name }}"
-          echo "Téléchargement de l'artéfact…"
-          gh run download ${{ steps.find.outputs.run_id }} \
-            --name "${{ steps.find.outputs.artifact_name }}" \
-            --dir ./pcf-artifact
-
-      
 
       - name: Uploader l'artéfact dans le run actuel
         uses: actions/upload-artifact@v4
